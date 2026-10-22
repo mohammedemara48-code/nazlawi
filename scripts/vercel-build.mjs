@@ -12,4 +12,5 @@ const env = { ...e, DATABASE_URL: db, DIRECT_URL: direct };
 const run = (cmd) => { console.log(`[vercel-build] ${cmd}`); execSync(cmd, { stdio: "inherit", env }); };
 run("npx prisma generate");
 run("npx prisma migrate deploy");
+run("node scripts/bootstrap-admin.mjs");
 run("npx next build");
