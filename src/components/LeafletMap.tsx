@@ -14,13 +14,17 @@ export function defaultView(): { center: LatLng; zoom: number } {
 }
 
 /** Leaflet + OSM map. Interactive mode: tap to place / drag the pin. Loaded client-side only. */
-export default function LeafletMap({ value, onChange, interactive = false, className = "h-64", label }: { value: LatLng | null; onChange?: (v: LatLng) => void; interactive?: boolean; className?: string; label: string }) {
+export default function LeafletMap({ value, onChange, interactive = false, className = "h-64", label, focus }: { focus?: (LatLng & { zoom: number }) | null; value: LatLng | null; onChange?: (v: LatLng) => void; interactive?: boolean; className?: string; label: string }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<Leaflet.Map | null>(null);
   const marker = useRef<Leaflet.Marker | null>(null);
   const L = useRef<typeof Leaflet | null>(null);
   const cb = useRef(onChange);
   cb.current = onChange;
+  const focusRef = useRef(focus);
+  focusRef.current = focus;
+  /** Recenter only (no pin), e.g. on the user's detected position. */
+  useEffect(() => { if (focus && map.current) map.current.setView(focus, focus.zoom); }, [focus?.lat, focus?.lng, focus?.zoom]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let dead = false;
@@ -34,6 +38,7 @@ export default function LeafletMap({ value, onChange, interactive = false, class
       if (interactive) m.on("click", (e: Leaflet.LeafletMouseEvent) => cb.current?.({ lat: e.latlng.lat, lng: e.latlng.lng }));
       map.current = m;
       sync(value);
+      if (!value && focusRef.current) m.setView(focusRef.current, focusRef.current.zoom);
     });
     return () => { dead = true; map.current?.remove(); map.current = null; marker.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
