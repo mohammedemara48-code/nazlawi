@@ -1,0 +1,240 @@
+// PostgreSQL (local Postgres in dev/tests, Neon / Vercel Postgres in production).
+// DATABASE_URL = pooled connection for the app; DIRECT_URL = direct (non-pooled) connection for migrations.
+// Statuses/roles are strings (validated with Zod) so new values need no migration.
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["omitApi"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id             String     @id @default(cuid())
+  name           String
+  email          String     @unique
+  password       String
+  role           String     @default("RESIDENT") // RESIDENT | PROVIDER | ADMIN
+  emailVerified  DateTime?
+  phone          String?
+  locale         String     @default("ar") // preferred language: ar | en
+  status         String     @default("ACTIVE") // ACTIVE | SUSPENDED
+  sessionVersion Int        @default(0) // bump to invalidate all existing sessions
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  stores         Store[] // one store per provider for now (enforced in the service layer)
+  listings       Listing[]
+  tokens         AuthToken[]
+  auditLogs      AuditLog[]
+  promotionsRequested Promotion[]
+
+  @@index([role, status])
+  @@index([createdAt])
+}
+
+/// A provider's mini store. Goes through admin approval like listings.
+model Store {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  category    String // groceries|clothing|construction|rides|transport|medical
+  subcategory String? // medical: doctors|pharmacies|labs
+  nameAr      String
+  nameEn      String
+  bioAr       String   @default("")
+  bioEn       String   @default("")
+  phone       String
+  whatsapp    String?
+  addressAr   String   @default("")
+  addressEn   String   @default("")
+  area        String   @default("")
+  logoKey     String?
+  coverKey    String?
+  status      String   @default("PENDING") // PENDING | APPROVED | HIDDEN
+  isExample   Boolean  @default(false)
+  searchText  String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  listings    Listing[]
+  groups      ListingGroup[]
+  video       Video?
+  promotions  Promotion[]
+
+  @@index([status, category, subcategory])
+  @@index([ownerId])
+  @@index([searchText])
+}
+
+/// Provider-defined sections inside a store (e.g. "Vegetables", "Offers").
+model ListingGroup {
+  id       String    @id @default(cuid())
+  storeId  String
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  nameAr   String
+  nameEn   String
+  position Int       @default(0)
+  listings Listing[]
+
+  @@index([storeId, position])
+}
+
+/// An ad/offer that belongs to a store.
+model Listing {
+  id               String   @id @default(cuid())
+  storeId          String?
+  store            Store?   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  groupId          String?
+  group            ListingGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  category         String // copied from the store
+  subcategory      String?
+  nameAr           String
+  nameEn           String
+  descAr           String   @default("")
+  descEn           String   @default("")
+  phone            String
+  whatsapp         String?
+  available        Boolean  @default(true)
+  // Price: integer minor units (piasters) to avoid float errors.
+  priceType        String   @default("ON_REQUEST") // FIXED | FROM | NEGOTIABLE | ON_REQUEST
+  priceMinor       Int? // required for FIXED / FROM
+  oldPriceMinor    Int? // optional "before" price for offers; must be > priceMinor
+  currency         String   @default("EGP")
+  unitAr           String   @default("") // e.g. "للكيلو"
+  unitEn           String   @default("") // e.g. "per kg"
+  status           String   @default("PENDING") // PENDING | APPROVED | HIDDEN
+  featuredPosition Int? // 1..3 when featured on the store, null otherwise
+  isExample        Boolean  @default(false)
+  searchText       String   @default("")
+  ownerId          String?
+  owner            User?    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  images           ListingImage[]
+  video            Video?
+  promotions       Promotion[]
+
+  @@index([status, category, subcategory])
+  @@index([storeId, status, featuredPosition])
+  @@index([storeId, groupId])
+  @@index([storeId, status, priceMinor])
+  @@index([category, status, priceMinor])
+  @@index([ownerId])
+  @@index([searchText])
+}
+
+model ListingImage {
+  id        String   @id @default(cuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  key       String   @unique
+  width     Int
+  height    Int
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([listingId, position])
+}
+
+/// One promo video per listing and/or per store. Private until approved.
+model Video {
+  id          String   @id @default(cuid())
+  listingId   String?  @unique
+  listing     Listing? @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  storeId     String?  @unique
+  store       Store?   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  ownerId     String
+  sourceKey   String?  @unique // original upload, deleted after processing
+  key         String?  @unique // transcoded mp4 (null until processed)
+  posterKey   String?  @unique // webp poster (null until processed)
+  durationSec Float    @default(0)
+  width       Int      @default(0)
+  height      Int      @default(0)
+  sizeBytes   Int      @default(0)
+  status      String   @default("PENDING") // moderation: PENDING | APPROVED | REJECTED
+  processing  String   @default("QUEUED") // QUEUED | PROCESSING | READY | FAILED
+  error       String? // error code when processing FAILED (VIDEO_INVALID, VIDEO_TOO_LONG, ...)
+  isExample   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  jobs        VideoJob[]
+
+  @@index([status, createdAt])
+  @@index([processing])
+}
+
+/// Background transcoding job (worker process or cron endpoint).
+model VideoJob {
+  id          String    @id @default(cuid())
+  videoId     String
+  video       Video     @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  status      String    @default("PENDING") // PENDING | PROCESSING | DONE | FAILED
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  runAfter    DateTime  @default(now())
+  lockedAt    DateTime?
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, runAfter])
+  @@index([videoId])
+}
+
+/// Promoted offer shown in the "عروض مميزة" strip.
+model Promotion {
+  id            String   @id @default(cuid())
+  targetType    String // LISTING | STORE
+  listingId     String?
+  listing       Listing? @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  storeId       String
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category      String // copied from the store, for per-category strips
+  startsAt      DateTime
+  endsAt        DateTime
+  priority      Int      @default(0) // higher first
+  status        String   @default("PENDING") // PENDING | APPROVED | REJECTED | EXPIRED
+  note          String   @default("")
+  isExample     Boolean  @default(false)
+  requestedById String?
+  requestedBy   User?    @relation(fields: [requestedById], references: [id], onDelete: SetNull)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status, startsAt, endsAt, priority])
+  @@index([category, status])
+  @@index([storeId])
+}
+
+/// Single-use, expiring tokens. Only a SHA-256 hash of the token is stored.
+model AuthToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // VERIFY_EMAIL | RESET_PASSWORD | CHANGE_EMAIL
+  data      String?
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, type])
+}
+
+/// Append-only log of admin actions.
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  actorEmail String
+  action     String
+  targetType String // USER | LISTING | STORE | VIDEO | PROMOTION
+  targetId   String
+  meta       String   @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([targetType, targetId])
+}
