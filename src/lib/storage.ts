@@ -84,7 +84,7 @@ export class VercelBlobStorage implements Storage {
   async put(key: string, data: Buffer, contentType: string) {
     assertKey(key);
     const { put } = await this.sdk;
-    await put(key, data, { access: "private", contentType, token: this.token, addRandomSuffix: false, allowOverwrite: true });
+    await put(key, data, { access: blobAccess(), contentType, token: this.token, addRandomSuffix: false, allowOverwrite: true });
   }
   async get(key: string) {
     const r = await this.read(key);
@@ -104,7 +104,7 @@ export class VercelBlobStorage implements Storage {
     const r = parseRange(rangeHeader, size);
     if (r === "416") return "416";
     const { get } = await this.sdk;
-    const res = await get(key, { access: "private", token: this.token, ...(r ? { headers: { range: `bytes=${r.start}-${r.end}` } } : {}) });
+    const res = await get(key, { access: blobAccess(), token: this.token, ...(r ? { headers: { range: `bytes=${r.start}-${r.end}` } } : {}) });
     if (!res || !res.stream) return null;
     if (!r) return { body: res.stream, size, status: 200, length: size };
     return { body: res.stream, size, status: 206, contentRange: `bytes ${r.start}-${r.end}/${size}`, length: r.end - r.start + 1 };
@@ -119,6 +119,8 @@ export class VercelBlobStorage implements Storage {
   }
 }
 
+/** Must match the Blob store's access mode (a store is either public or private). BLOB_ACCESS=public|private. */
+export const blobAccess = (): "public" | "private" => (process.env.BLOB_ACCESS === "public" ? "public" : "private");
 export const storageDriver = () => (process.env.STORAGE_DRIVER === "vercel-blob" ? "vercel-blob" : "local");
 const g = globalThis as unknown as { storage?: Storage };
 export const storage: Storage = (g.storage ??= storageDriver() === "vercel-blob" ? new VercelBlobStorage() : new LocalStorage());

@@ -174,6 +174,31 @@ export async function claimVideoJob(now = new Date()) {
   return rows[0] ? prisma.videoJob.findUnique({ where: { id: rows[0].id }, include: { video: true } }) : null;
 }
 
+let ffmpegOk: Promise<boolean> | undefined;
+/** Is ffmpeg/ffprobe available here? (Not on Vercel unless FFMPEG_PATH/FFPROBE_PATH point to binaries.) */
+export const hasFfmpeg = () => (ffmpegOk ??= Promise.all([run(FFMPEG, ["-version"], { timeout: 10_000 }), run(FFPROBE, ["-version"], { timeout: 10_000 })]).then(() => true, () => false));
+
+/** Reads the duration (seconds) from an MP4/MOV 'mvhd' box; null if this isn't an ISO-BMFF file. */
+export function mp4Duration(buf: Buffer): number | null {
+  if (buf.length < 16 || buf.toString("latin1", 4, 8) !== "ftyp") return null;
+  const i = buf.indexOf("mvhd", 0, "latin1");
+  if (i < 0 || i + 32 > buf.length) return null;
+  const v = buf[i + 4];
+  const scale = v === 1 ? buf.readUInt32BE(i + 24) : buf.readUInt32BE(i + 16);
+  const dur = v === 1 ? Number(buf.readBigUInt64BE(i + 28)) : buf.readUInt32BE(i + 20);
+  return scale > 0 ? dur / scale : null;
+}
+
+/** No ffmpeg: keep MP4/MOV as-is after checking the container, duration and size. Still PENDING admin approval. */
+async function passthroughVideo(src: Buffer) {
+  const { maxSeconds, maxBytes } = videoLimits();
+  if (src.length > maxBytes) throw new ApiError("VIDEO_TOO_LARGE");
+  const d = mp4Duration(src);
+  if (d == null || !Number.isFinite(d) || d <= 0) throw new ApiError("VIDEO_INVALID");
+  if (d > maxSeconds + 0.5) throw new ApiError("VIDEO_TOO_LONG");
+  return { mp4: src, poster: null as Buffer | null, durationSec: Math.round(d * 10) / 10, width: 0, height: 0 };
+}
+
 /** Processes one claimed job: download original → ffprobe/ffmpeg → store mp4 + poster → mark READY. */
 export async function runVideoJob(job: NonNullable<Awaited<ReturnType<typeof claimVideoJob>>>) {
   const v = job.video;
@@ -188,11 +213,12 @@ export async function runVideoJob(job: NonNullable<Awaited<ReturnType<typeof cla
     if (!src) throw new ApiError("VIDEO_INVALID");
     const input = path.join(dir, "in");
     await fs.writeFile(input, src);
-    const out = await transcodeVideoFile(input);
+    const out = (await hasFfmpeg()) ? await transcodeVideoFile(input) : await passthroughVideo(src);
     const id = crypto.randomUUID();
-    const key = `videos/${id}.mp4`, posterKey = `videos/${id}.webp`;
+    const key = `videos/${id}.mp4`;
+    const posterKey = out.poster ? `videos/${id}.webp` : null;
     await storage.put(key, out.mp4, "video/mp4");
-    await storage.put(posterKey, out.poster, "image/webp");
+    if (out.poster && posterKey) await storage.put(posterKey, out.poster, "image/webp");
     await prisma.$transaction([
       prisma.video.update({ where: { id: v.id }, data: { key, posterKey, sourceKey: null, durationSec: out.durationSec, width: out.width, height: out.height, sizeBytes: out.mp4.length, processing: "READY", error: null } }),
       prisma.videoJob.update({ where: { id: job.id }, data: { status: "DONE", lockedAt: null, lastError: null } }),
