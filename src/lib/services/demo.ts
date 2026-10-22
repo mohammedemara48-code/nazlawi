@@ -60,7 +60,8 @@ const SAMPLE_EN = "Sample price, demo only";
 
 export async function createDemoStore(admin: Session, opts: { whatsapp?: string | null } = {}) {
   const existing = await prisma.store.findUnique({ where: { slug: DEMO_SLUG } });
-  if (existing) return { store: existing, created: false };
+  if (existing && !existing.deletedAt) return { store: existing, created: false };
+  if (existing) await prisma.store.delete({ where: { id: existing.id } }); // was in the admin trash: start fresh
   const owner = await prisma.user.upsert({
     where: { email: DEMO_EMAIL },
     update: {},

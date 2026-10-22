@@ -6,6 +6,7 @@ import { dict, href } from "@/lib/i18n";
 import { apiCall } from "./api-client";
 import { PRICE_TYPES } from "@/lib/constants";
 import { toMinor } from "@/lib/price";
+import LocationField, { type Loc } from "./LocationField";
 
 type L = Omit<Listing, "searchText">;
 type TextField = "nameAr" | "nameEn" | "descAr" | "descEn" | "phone" | "whatsapp";
@@ -14,6 +15,7 @@ export default function ListingForm({ lang, initial, groups }: { lang: Locale; i
   const [err, setErr] = useState<string | null>(null);
   const [fields, setFields] = useState<{ field: string; message: string }[]>([]);
   const [busy, setBusy] = useState(false);
+  const [loc, setLoc] = useState<Loc>({ pin: initial?.latitude != null && initial?.longitude != null ? { lat: initial.latitude, lng: initial.longitude } : null, note: initial?.locationNote ?? "" });
   const [priceType, setPriceType] = useState<string>(initial?.priceType ?? "FIXED");
   const major = (m: number | null | undefined) => (m == null ? "" : String(m / 100));
   const fe = (f: string) => fields.find((x) => x.field === f)?.message;
@@ -28,7 +30,7 @@ export default function ListingForm({ lang, initial, groups }: { lang: Locale; i
     const bad = [["priceMinor", priceMinor], ["oldPriceMinor", oldPriceMinor]].filter(([, v]) => Number.isNaN(v)).map(([f]) => ({ field: f as string, message: t.invalidAmount }));
     if (bad.length) { setBusy(false); setFields(bad); setErr(t.invalidAmount); return; }
     const { price: _p, oldPrice: _o, ...rest } = fd; void _p; void _o;
-    const body = { ...rest, priceMinor, oldPriceMinor, currency: "EGP", unitAr: fd.unitAr ?? "", unitEn: fd.unitEn ?? "", available: fd.available === "on", groupId: fd.groupId || null, phone: fd.phone || undefined };
+    const body = { ...rest, priceMinor, oldPriceMinor, currency: "EGP", unitAr: fd.unitAr ?? "", unitEn: fd.unitEn ?? "", available: fd.available === "on", groupId: fd.groupId || null, phone: fd.phone || undefined, latitude: loc.pin?.lat ?? null, longitude: loc.pin?.lng ?? null, locationNote: loc.note };
     const r = await apiCall<{ listing: { id: string } }>(initial ? `/api/listings/${initial.id}` : "/api/listings", lang, { method: initial ? "PATCH" : "POST", body });
     setBusy(false);
     if (!r.ok) { setErr(r.error); setFields(r.details); return; }
@@ -93,6 +95,9 @@ export default function ListingForm({ lang, initial, groups }: { lang: Locale; i
           </>)}
         </div>
       </fieldset>
+      <div className="grid gap-4 sm:grid-cols-2"><LocationField lang={lang} id="lf-loc" value={loc} onChange={setLoc} error={fe("latitude")}
+        title={lang === "en" ? "Service / pickup location (optional)" : "مكان الخدمة أو الاستلام (اختياري)"}
+        hint={lang === "en" ? "Leave empty to use the store location." : "سيبه فاضي لو المكان هو نفس مكان المتجر."} /></div>
       <label className="flex items-center gap-2"><input type="checkbox" name="available" defaultChecked={initial?.available ?? true} /> {t.availability}</label>
       <p className="text-xs text-stone-500">{t.pendingNote}</p>
       {!initial && <p className="text-xs text-stone-500">{t.saveFirst}</p>}

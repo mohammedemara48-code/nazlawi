@@ -20,7 +20,7 @@ export default function AuthForm({ lang, mode, next }: { lang: Locale; mode: "lo
       const r = await fetch(`/api/auth/${mode}?lang=${lang}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const j = await r.json();
       if (!r.ok) { setErr(j.error?.message ?? t.genericError); setFields(j.error?.details ?? []); return; }
-      const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : href(lang, "/dashboard");
+      const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : href(lang, "/dashboard"); // admins are redirected to /admin by the dashboard layout
       window.location.href = safeNext;
     } catch { setErr(t.genericError); } finally { setBusy(false); }
   }

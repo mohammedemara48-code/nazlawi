@@ -23,6 +23,7 @@ const MESSAGES = {
   LAST_ADMIN: { ar: "يجب أن يبقى مدير واحد نشط على الأقل", en: "At least one active admin must remain" },
   SAME_EMAIL: { ar: "هذا هو بريدك الحالي بالفعل", en: "That is already your email" },
   STORE_REQUIRED: { ar: "لازم تنشئ متجرك الأول", en: "Create your store first" },
+  ADMIN_NO_STORE: { ar: "حساب الإدارة لا يمكنه فتح متجر أو امتلاكه. استخدم حساب مقدم خدمة منفصل.", en: "Admin accounts can't open or own a store. Use a separate provider account." },
   STORE_EXISTS: { ar: "عندك متجر بالفعل", en: "You already have a store" },
   FEATURED_LIMIT: { ar: "تقدر تختار 3 إعلانات مميزة كحد أقصى", en: "You can feature at most 3 listings" },
   NOT_APPROVED: { ar: "لازم الإعلان يكون منشور الأول", en: "The listing must be approved first" },
@@ -42,7 +43,7 @@ const STATUS: Record<ErrorCode, number> = {
   INVALID_CREDENTIALS: 401, RATE_LIMITED: 429, BAD_JSON: 400, INTERNAL: 500,
   TOKEN_INVALID: 400, EMAIL_NOT_VERIFIED: 403, ACCOUNT_SUSPENDED: 403, WRONG_PASSWORD: 403,
   CANNOT_MODIFY_SELF: 409, LAST_ADMIN: 409, SAME_EMAIL: 409,
-  STORE_REQUIRED: 409, STORE_EXISTS: 409, FEATURED_LIMIT: 422, NOT_APPROVED: 409,
+  STORE_REQUIRED: 409, STORE_EXISTS: 409, ADMIN_NO_STORE: 403, FEATURED_LIMIT: 422, NOT_APPROVED: 409,
   VIDEO_INVALID: 415, VIDEO_TOO_LARGE: 413, VIDEO_TOO_LONG: 422, INVALID_DATES: 422, PROMOTION_LIMIT: 429, PROMOTION_ENDED: 409, SECTION_LIMIT: 409, SECTION_EXISTS: 409, PRODUCT_LIMIT: 409, FILE_TOO_LARGE: 413, FILE_TYPE: 415, TOO_MANY_IMAGES: 409,
 };
 

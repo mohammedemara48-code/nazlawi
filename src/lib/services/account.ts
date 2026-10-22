@@ -15,12 +15,12 @@ async function userWithPassword(id: string, password: string) {
 export async function getAccount(id: string) {
   return prisma.user.findUnique({
     where: { id },
-    select: { id: true, name: true, email: true, phone: true, locale: true, role: true, emailVerified: true, createdAt: true },
+    select: { id: true, name: true, email: true, phone: true, locale: true, latitude: true, longitude: true, addressNote: true, role: true, emailVerified: true, createdAt: true },
   });
 }
 
-export async function updateProfile(id: string, data: { name?: string; phone?: string | null; locale?: string }) {
-  return prisma.user.update({ where: { id }, data, select: { id: true, name: true, phone: true, locale: true } });
+export async function updateProfile(id: string, data: { name?: string; phone?: string | null; locale?: string; latitude?: number | null; longitude?: number | null; addressNote?: string }) {
+  return prisma.user.update({ where: { id }, data, select: { id: true, name: true, phone: true, locale: true, latitude: true, longitude: true, addressNote: true } });
 }
 
 /** Changes the password and bumps sessionVersion (signs out all other sessions). Returns the new version. */

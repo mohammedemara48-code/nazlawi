@@ -8,6 +8,7 @@ import { getServerSession } from "@/lib/server-session";
 import { getListing } from "@/lib/services/listings";
 import { ApiError } from "@/lib/errors";
 import PriceTag from "@/components/PriceTag";
+import StoreMap from "@/components/StoreMap";
 
 type Props = { params: Promise<{ lang: string; id: string }> };
 export const dynamic = "force-dynamic";
@@ -70,6 +71,12 @@ export default async function ProviderPage({ params }: Props) {
           <a href={waLink(p.whatsapp || p.phone)} target="_blank" rel="noopener noreferrer" className="btn flex-1 bg-emerald-600 text-white hover:bg-emerald-700">💬 {t.whatsapp}</a>
         </div>
       </div>
+      {p.latitude != null && p.longitude != null ? (
+        <StoreMap lang={lang} lat={p.latitude} lng={p.longitude} landmark={p.locationNote || undefined} testId="product-map" />
+      ) : p.store?.latitude != null && p.store?.longitude != null ? (
+        <StoreMap lang={lang} lat={p.store.latitude} lng={p.store.longitude} landmark={(lang === "en" ? p.store.addressEn : p.store.addressAr) || undefined}
+          title={lang === "en" ? "Store location" : "موقع المتجر"} testId="product-map" />
+      ) : null}
     </article>
   );
 }

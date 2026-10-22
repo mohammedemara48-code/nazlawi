@@ -28,24 +28,26 @@ async function uniqueSlug(nameEn: string) {
 /** Loads a store and checks the caller owns it (or is admin). */
 export async function ownStore(id: string, s: Session) {
   const store = await prisma.store.findUnique({ where: { id } });
-  if (!store) throw new ApiError("NOT_FOUND");
+  if (!store || store.deletedAt) throw new ApiError("NOT_FOUND");
   if (s.role !== "ADMIN" && store.ownerId !== s.sub) throw new ApiError("FORBIDDEN");
   return store;
 }
 
 export const getMyStore = (userId: string) =>
-  prisma.store.findFirst({ where: { ownerId: userId }, orderBy: { createdAt: "asc" }, omit: { searchText: true }, include: { video: true, groups: { orderBy: { position: "asc" } } } });
+  prisma.store.findFirst({ where: { ownerId: userId, deletedAt: null }, orderBy: { createdAt: "asc" }, omit: { searchText: true }, include: { video: true, groups: { orderBy: { position: "asc" } } } });
 
 export async function createStore(input: StoreInput, s: Session) {
-  if (s.role !== "PROVIDER" && s.role !== "ADMIN") throw new ApiError("FORBIDDEN");
+  // Admins moderate the marketplace; they never own a store.
+  if (s.role === "ADMIN") throw new ApiError("ADMIN_NO_STORE");
+  if (s.role !== "PROVIDER") throw new ApiError("FORBIDDEN");
   const user = await prisma.user.findUnique({ where: { id: s.sub } });
   if (!user) throw new ApiError("UNAUTHORIZED");
-  if (s.role !== "ADMIN" && !user.emailVerified) throw new ApiError("EMAIL_NOT_VERIFIED");
+  if (!user.emailVerified) throw new ApiError("EMAIL_NOT_VERIFIED");
   // One store per provider for now; the schema already allows more.
-  if (await prisma.store.count({ where: { ownerId: s.sub } })) throw new ApiError("STORE_EXISTS");
+  if (await prisma.store.count({ where: { ownerId: s.sub, deletedAt: null } })) throw new ApiError("STORE_EXISTS");
   const data = { ...input, subcategory: input.category === "medical" ? input.subcategory ?? null : null };
   return prisma.store.create({
-    data: { ...data, slug: await uniqueSlug(data.nameEn), ownerId: s.sub, searchText: storeSearch(data), status: s.role === "ADMIN" ? "APPROVED" : "PENDING" },
+    data: { ...data, slug: await uniqueSlug(data.nameEn), ownerId: s.sub, searchText: storeSearch(data), status: "PENDING" },
     omit: { searchText: true },
   });
 }
@@ -143,16 +145,16 @@ export async function storePage(slug: string, viewer: Session | null, q: { group
     omit: { searchText: true },
     include: { owner: OWNER_STATUS, video: true, groups: { orderBy: { position: "asc" }, include: { _count: { select: { listings: { where: LISTING_PUBLIC } } } } } },
   });
-  if (!store) throw new ApiError("NOT_FOUND");
+  if (!store || store.deletedAt) throw new ApiError("NOT_FOUND");
   const canManage = !!viewer && (viewer.role === "ADMIN" || viewer.sub === store.ownerId);
   if (!isStorePublic(store) && !canManage) throw new ApiError("NOT_FOUND");
   const range = priceRange(q);
   // Default view: featured listings are shown in their own section, so "all listings" excludes them (no duplicates).
   // With a group tab or price filter active, the featured section is hidden and every match is listed once.
   const defaultView = !q.group && !range;
-  const lw: Prisma.ListingWhereInput = { storeId: store.id, status: "APPROVED", ...(q.group ? { groupId: q.group } : {}), ...(range ? { priceMinor: range } : {}), ...(defaultView ? { featuredPosition: null } : {}) };
+  const lw: Prisma.ListingWhereInput = { storeId: store.id, status: "APPROVED", deletedAt: null, ...(q.group ? { groupId: q.group } : {}), ...(range ? { priceMinor: range } : {}), ...(defaultView ? { featuredPosition: null } : {}) };
   const [featured, listings, total] = await prisma.$transaction([
-    prisma.listing.findMany({ where: { storeId: store.id, status: "APPROVED", featuredPosition: { not: null } }, orderBy: { featuredPosition: "asc" }, take: MAX_FEATURED, omit: { searchText: true }, include: { images: { orderBy: { position: "asc" }, take: 1 } } }),
+    prisma.listing.findMany({ where: { storeId: store.id, status: "APPROVED", deletedAt: null, featuredPosition: { not: null } }, orderBy: { featuredPosition: "asc" }, take: MAX_FEATURED, omit: { searchText: true }, include: { images: { orderBy: { position: "asc" }, take: 1 } } }),
     prisma.listing.findMany({ where: lw, orderBy: listingOrder(q.sort), skip: (q.page - 1) * q.pageSize, take: q.pageSize, omit: { searchText: true }, include: { images: { orderBy: { position: "asc" }, take: 1 } } }),
     prisma.listing.count({ where: lw }),
   ]);
@@ -172,10 +174,10 @@ export async function storePage(slug: string, viewer: Session | null, q: { group
 export async function setFeatured(storeId: string, listingIds: string[], s: Session) {
   await ownStore(storeId, s);
   if (listingIds.length > MAX_FEATURED) throw new ApiError("FEATURED_LIMIT");
-  const found = await prisma.listing.findMany({ where: { id: { in: listingIds } }, select: { id: true, storeId: true, status: true } });
+  const found = await prisma.listing.findMany({ where: { id: { in: listingIds } }, select: { id: true, storeId: true, status: true, deletedAt: true } });
   for (const id of listingIds) {
     const l = found.find((x) => x.id === id);
-    if (!l) throw new ApiError("NOT_FOUND");
+    if (!l || l.deletedAt) throw new ApiError("NOT_FOUND");
     if (l.storeId !== storeId) throw new ApiError("FORBIDDEN");
     if (l.status !== "APPROVED") throw new ApiError("NOT_APPROVED");
   }
@@ -219,10 +221,11 @@ export async function deleteGroup(storeId: string, groupId: string, s: Session) 
   await prisma.listingGroup.delete({ where: { id: groupId } }); // listings keep existing (groupId -> null)
 }
 
+/** Admin list. status "DELETED" = the trash (soft-deleted, purged after 30 days); other tabs never show deleted stores. */
 export async function adminListStores(status: string | undefined, page: number, pageSize: number) {
-  const where: Prisma.StoreWhereInput = status ? { status } : {};
+  const where: Prisma.StoreWhereInput = status === "DELETED" ? { deletedAt: { not: null } } : { deletedAt: null, ...(status ? { status } : {}) };
   const [items, total] = await prisma.$transaction([
-    prisma.store.findMany({ where, orderBy: { createdAt: "desc" }, skip: (page - 1) * pageSize, take: pageSize, omit: { searchText: true }, include: { owner: { select: { email: true, status: true } }, _count: { select: { listings: true } } } }),
+    prisma.store.findMany({ where, orderBy: { createdAt: "desc" }, skip: (page - 1) * pageSize, take: pageSize, omit: { searchText: true }, include: { owner: { select: { email: true, status: true, role: true } }, _count: { select: { listings: true } } } }),
     prisma.store.count({ where }),
   ]);
   return { items, page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) };

@@ -15,6 +15,7 @@ export default async function Onboarding({ params }: Props) {
   const lang = asLocale((await params).lang);
   const s = await getServerSession();
   if (!s) redirect(href(lang, "/login"));
+  if (s.role === "ADMIN") redirect(href(lang, "/admin")); // admins never own a store
   if (s.role === "RESIDENT") redirect(href(lang, "/dashboard"));
   if (await getMyStore(s.sub)) redirect(href(lang, "/dashboard"));
   return <StoreForm lang={lang} />;

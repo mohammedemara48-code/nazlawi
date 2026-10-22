@@ -10,6 +10,7 @@ import ModerationButtons from "@/components/ModerationButtons";
 import Pager from "@/components/Pager";
 import { StoreLogo } from "@/components/StoreRow";
 import { StatusTabs } from "../_shared";
+import AdminAction from "@/components/AdminAction";
 
 type Props = { params: Promise<{ lang: string }>; searchParams: Promise<{ status?: string; page?: string }> };
 export const dynamic = "force-dynamic";
@@ -41,7 +42,11 @@ export default async function AdminStores({ params, searchParams }: Props) {
                 <p className="text-sm text-stone-500">{t.categories[st.category as Category][0]} · <span dir="ltr">{st.owner.email}</span> · {t.results(st._count.listings)}</p>
               </div>
             </div>
-            <ModerationButtons lang={lang} url={`/api/admin/stores/${st.id}/status`} actions={[{ label: t.approve, body: { status: "APPROVED" } }, { label: t.hide, body: { status: "HIDDEN" }, tone: "danger" }]} />
+            <div className="flex flex-wrap items-center gap-2">
+              <ModerationButtons lang={lang} url={`/api/admin/stores/${st.id}/status`} actions={[{ label: t.approve, body: { status: "APPROVED" } }, { label: t.hide, body: { status: "HIDDEN" } }]} />
+              <AdminAction lang={lang} kind="store" id={st.id} action="delete" />
+              {st.owner.role === "ADMIN" && <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">{lang === "en" ? "Owned by an admin" : "مملوك لحساب إدارة"}</span>}
+            </div>
           </li>
         ))}
       </ul>

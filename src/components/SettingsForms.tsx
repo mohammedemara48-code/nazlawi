@@ -2,8 +2,9 @@
 import { useState } from "react";
 import type { Locale } from "@/lib/constants";
 import { dict, href } from "@/lib/i18n";
+import LocationField, { type Loc } from "./LocationField";
 
-type Account = { name: string; email: string; phone: string | null; locale: string };
+type Account = { name: string; email: string; phone: string | null; locale: string; latitude?: number | null; longitude?: number | null; addressNote?: string };
 type Msg = { ok: boolean; text: string; fields?: { field: string; message: string }[] } | null;
 
 function useSubmit(lang: Locale) {
@@ -34,6 +35,7 @@ const fd = (e: React.FormEvent<HTMLFormElement>) => Object.fromEntries(new FormD
 
 export default function SettingsForms({ lang, account }: { lang: Locale; account: Account }) {
   const t = dict(lang);
+  const [loc, setLoc] = useState<Loc>({ pin: account.latitude != null && account.longitude != null ? { lat: account.latitude, lng: account.longitude } : null, note: account.addressNote ?? "" });
   const profile = useSubmit(lang), pw = useSubmit(lang), email = useSubmit(lang), del = useSubmit(lang);
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -42,7 +44,7 @@ export default function SettingsForms({ lang, account }: { lang: Locale; account
       <form className="card space-y-4 p-6" onSubmit={(e) => {
         e.preventDefault();
         const v = fd(e);
-        profile.run("/api/account/profile", "PATCH", v, t.saved, () => {
+        profile.run("/api/account/profile", "PATCH", { ...v, latitude: loc.pin?.lat ?? null, longitude: loc.pin?.lng ?? null, addressNote: loc.note }, t.saved, () => {
           if (v.locale !== lang) window.location.href = (v.locale === "en" ? "/en" : "") + "/settings";
         });
       }}>
@@ -52,6 +54,10 @@ export default function SettingsForms({ lang, account }: { lang: Locale; account
         <div><label className="label" htmlFor="phone">{t.phoneOptional}</label><input id="phone" name="phone" dir="ltr" className="input" defaultValue={account.phone ?? ""} /></div>
         <div><label className="label" htmlFor="locale">{t.language}</label>
           <select id="locale" name="locale" className="input" defaultValue={account.locale}><option value="ar">العربية</option><option value="en">English</option></select></div>
+        <LocationField lang={lang} id="addr" value={loc} onChange={setLoc}
+          title={lang === "en" ? "My address on the map (optional)" : "عنواني على الخريطة (اختياري)"}
+          hint={lang === "en" ? "Tap the map to drop a pin on your home. Only you can see it." : "اضغط على الخريطة لتحديد مكان بيتك. محدش يشوفه غيرك."}
+          noteLabel={lang === "en" ? "Address details / landmark (optional)" : "تفاصيل العنوان / علامة مميزة (اختياري)"} />
         <button disabled={profile.busy} className="btn-primary">{t.save}</button>
       </form>
 

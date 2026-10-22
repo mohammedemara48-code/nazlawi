@@ -1,5 +1,5 @@
 // Nazlawi service worker: app shell + recently viewed pages/listings + offline fallback.
-const VERSION = "v5";
+const VERSION = "v6";
 const SHELL = `nz-shell-${VERSION}`;
 const PAGES = `nz-pages-${VERSION}`;
 const ASSETS = `nz-assets-${VERSION}`;
@@ -41,21 +41,13 @@ self.addEventListener("fetch", (e) => {
     return;
   }
 
-  // Public listing API: network-first, fall back to cache.
-  if (/^\/api\/(listings|stores|promotions)(\/|$|\?)/.test(url.pathname) && !url.pathname.includes("/images")) {
-    e.respondWith(
-      fetch(req).then((res) => {
-        if (res.ok) { const copy = res.clone(); caches.open(PAGES).then((c) => c.put(req, copy)).then(() => trim(PAGES, MAX_PAGES)); }
-        return res;
-      }).catch(() => caches.match(req).then((r) => r || Response.json({ error: { code: "OFFLINE", message: "offline" } }, { status: 503 }))),
-    );
-    return;
-  }
+  // API responses are never cached: deletes/hides by the admin must show up immediately.
   if (url.pathname.startsWith("/api/")) return;
 
-  // Other static files (icons, manifest, hero image, fonts): cache, then network.
+  // Other static files (icons, manifest, hero image, fonts): cache, then network. Everything else
+  // (Next RSC/data requests, router.refresh) goes straight to the network so lists are never stale.
   if (req.mode !== "navigate") {
-    e.respondWith(caches.match(req).then((hit) => hit || fetch(req)));
+    if (/\.(png|jpe?g|webp|svg|ico|woff2?|webmanifest)$/.test(url.pathname)) e.respondWith(caches.match(req).then((hit) => hit || fetch(req)));
     return;
   }
 

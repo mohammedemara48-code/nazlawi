@@ -12,8 +12,8 @@ const T = {
 };
 const round = (v: LatLng): LatLng => ({ lat: Math.round(v.lat * 1e6) / 1e6, lng: Math.round(v.lng * 1e6) / 1e6 });
 
-export default function MapPicker({ lang, value, onChange, error }: { lang: Locale; value: LatLng | null; onChange: (v: LatLng | null) => void; error?: string }) {
-  const t = T[lang];
+export default function MapPicker({ lang, value, onChange, error, title, hint, mapLabel, required }: { lang: Locale; value: LatLng | null; onChange: (v: LatLng | null) => void; error?: string; title?: string; hint?: string; mapLabel?: string; required?: boolean }) {
+  const t = { ...T[lang], ...(title ? { title } : {}), ...(hint ? { hint } : {}), ...(mapLabel ? { map: mapLabel } : {}) };
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [focus, setFocus] = useState<(LatLng & { zoom: number }) | null>(null);
@@ -44,7 +44,7 @@ export default function MapPicker({ lang, value, onChange, error }: { lang: Loca
   }
   return (
     <div className="space-y-2 sm:col-span-2">
-      <p className="label">{t.title}</p>
+      <p className="label">{t.title}{required && " *"}</p>
       <p className="text-xs text-stone-500">{t.hint}</p>
       <div className="relative">
         <LeafletMap interactive focus={value ? null : focus} value={value} onChange={(v) => onChange(round(v))} label={t.map} className="h-64 sm:h-80" />

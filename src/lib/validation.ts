@@ -68,6 +68,11 @@ const storeBase = z.object({
   latitude: z.coerce.number().min(-90, m("خط العرض غير صحيح", "Invalid latitude")).max(90, m("خط العرض غير صحيح", "Invalid latitude")).nullish(),
   longitude: z.coerce.number().min(-180, m("خط الطول غير صحيح", "Invalid longitude")).max(180, m("خط الطول غير صحيح", "Invalid longitude")).nullish(),
 });
+/** Shared map-pin fields (optional pin + short landmark). Both coordinates or neither. */
+const lat = z.coerce.number().min(-90, m("خط العرض غير صحيح", "Invalid latitude")).max(90, m("خط العرض غير صحيح", "Invalid latitude")).nullish();
+const lng = z.coerce.number().min(-180, m("خط الطول غير صحيح", "Invalid longitude")).max(180, m("خط الطول غير صحيح", "Invalid longitude")).nullish();
+const landmark = (max = 120) => z.string().trim().max(max, m("العلامة المميزة طويلة جداً", "Landmark is too long")).default("");
+export const pinFields = { latitude: lat, longitude: lng };
 const coordsRule = (v: { latitude?: number | null; longitude?: number | null }) => (v.latitude == null) === (v.longitude == null);
 const coordsMsg = { message: m("حدد الموقع على الخريطة كاملاً", "Set both latitude and longitude"), path: ["latitude"] };
 export const storeCreateSchema = storeBase.refine(medicalRule, medicalMsg).refine(coordsRule, coordsMsg);
@@ -76,6 +81,8 @@ export const storeUpdateSchema = storeBase.partial().refine(medicalRule, medical
 /** Listing = an ad/offer inside a store. Category comes from the store. */
 const listingBase = z.object({
   storeId: z.string().cuid().optional(),
+  ...pinFields,
+  locationNote: landmark(),
   groupId: z.string().cuid().nullish(),
   nameAr: z.string().trim().min(2, m("الاسم بالعربي مطلوب", "Arabic name is required")).max(100),
   nameEn: z.string().trim().min(2, m("الاسم بالإنجليزي مطلوب", "English name is required")).max(100),
@@ -110,8 +117,8 @@ const priceRefine = (v: PriceFields, ctx: z.RefinementCtx) => {
   const p = priceProblem(v);
   if (p) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [p[0]], message: p[1] });
 };
-export const listingCreateSchema = listingBase.superRefine(priceRefine);
-export const listingUpdateSchema = listingBase.omit({ storeId: true }).partial();
+export const listingCreateSchema = listingBase.superRefine(priceRefine).refine(coordsRule, coordsMsg);
+export const listingUpdateSchema = listingBase.omit({ storeId: true }).partial().refine(coordsRule, coordsMsg);
 
 export const featuredSchema = z.object({
   listingIds: z.array(z.string().cuid()).max(3, m("تقدر تختار 3 إعلانات مميزة كحد أقصى", "You can feature at most 3 listings"))
@@ -193,7 +200,9 @@ export const profileSchema = z.object({
   name: z.string().trim().min(2, m("الاسم قصير جداً", "Name is too short")).max(80, m("الاسم طويل جداً", "Name is too long")).optional(),
   phone: phone.nullish().or(z.literal("").transform(() => null)),
   locale: z.enum(["ar", "en"]).optional(),
-});
+  ...pinFields,
+  addressNote: landmark(160).optional(),
+}).refine(coordsRule, coordsMsg);
 export const changePasswordSchema = z.object({ currentPassword: z.string().min(1).max(128), newPassword: passwordSchema });
 export const changeEmailSchema = z.object({ password: z.string().min(1).max(128), newEmail: email });
 export const deleteAccountSchema = z.object({ password: z.string().min(1).max(128) });
@@ -241,13 +250,15 @@ const productFields = {
   unit: z.enum(UNITS, { message: m("اختر الوحدة", "Choose a unit") }).default("piece"),
   inStock: z.boolean().default(true),
   featured: z.boolean().optional(),
+  ...pinFields,
+  locationNote: landmark(),
 };
 const oldPriceRule = (v: { price?: number | null; oldPrice?: number | null }, ctx: z.RefinementCtx) => {
   if (v.oldPrice != null && v.price != null && v.oldPrice <= v.price)
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["oldPrice"], message: m("السعر قبل الخصم لازم يكون أكبر من السعر الحالي", "Old price must be higher than the current price") });
 };
-export const productCreateSchema = z.object(productFields).superRefine(oldPriceRule);
-export const productUpdateSchema = z.object(productFields).partial().superRefine(oldPriceRule);
+export const productCreateSchema = z.object(productFields).superRefine(oldPriceRule).refine(coordsRule, coordsMsg);
+export const productUpdateSchema = z.object(productFields).partial().superRefine(oldPriceRule).refine(coordsRule, coordsMsg);
 export const productQuickSchema = z.object({ price: moneyReq().optional(), oldPrice: moneyOpt(), inStock: z.boolean().optional(), featured: z.boolean().optional() })
   .refine((v) => Object.values(v).some((x) => x !== undefined), m("لا يوجد تغيير", "Nothing to change")).superRefine(oldPriceRule);
 export type ProductInput = z.infer<typeof productCreateSchema>;

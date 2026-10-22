@@ -19,6 +19,7 @@ const PRODUCT_SELECT = {
   id: true, storeId: true, groupId: true, nameAr: true, nameEn: true, descAr: true, descEn: true,
   priceMinor: true, oldPriceMinor: true, unit: true, unitAr: true, unitEn: true, available: true,
   featuredPosition: true, position: true, status: true, createdAt: true, updatedAt: true,
+  latitude: true, longitude: true, locationNote: true,
   images: { orderBy: { position: "asc" }, take: 1, select: { id: true, key: true, width: true, height: true } },
 } satisfies Prisma.ListingSelect;
 export type Product = Prisma.ListingGetPayload<{ select: typeof PRODUCT_SELECT }>;
@@ -85,7 +86,7 @@ async function assertSection(sectionId: string | null | undefined, storeId: stri
 }
 async function ownProduct(id: string, s: Session) {
   const p = await prisma.listing.findUnique({ where: { id } });
-  if (!p || !p.storeId) throw new ApiError("NOT_FOUND");
+  if (!p || !p.storeId || p.deletedAt) throw new ApiError("NOT_FOUND");
   if (s.role !== "ADMIN" && p.ownerId !== s.sub) throw new ApiError("FORBIDDEN");
   return p as typeof p & { storeId: string };
 }
@@ -104,7 +105,7 @@ async function setFeaturedFlag(p: { id: string; storeId: string; status: string;
 
 export async function listProducts(storeId: string, s: Session) {
   await ownStore(storeId, s);
-  return prisma.listing.findMany({ where: { storeId }, orderBy: [{ position: "asc" }, { createdAt: "asc" }], select: PRODUCT_SELECT });
+  return prisma.listing.findMany({ where: { storeId, deletedAt: null }, orderBy: [{ position: "asc" }, { createdAt: "asc" }], select: PRODUCT_SELECT });
 }
 export const getProduct = async (id: string, s: Session) => {
   await ownProduct(id, s);
@@ -114,7 +115,7 @@ export const getProduct = async (id: string, s: Session) => {
 export async function createProduct(storeId: string, input: ProductInput, s: Session) {
   await assertCatalogUser(s);
   const store = await ownStore(storeId, s);
-  if ((await prisma.listing.count({ where: { storeId } })) >= MAX_PRODUCTS) throw new ApiError("PRODUCT_LIMIT");
+  if ((await prisma.listing.count({ where: { storeId, deletedAt: null } })) >= MAX_PRODUCTS) throw new ApiError("PRODUCT_LIMIT");
   await assertSection(input.sectionId, storeId);
   const data = { nameAr: input.nameAr, nameEn: input.nameEn || input.nameAr, descAr: input.descAr, descEn: input.descEn };
   const last = await prisma.listing.aggregate({ where: { storeId, groupId: input.sectionId ?? null }, _max: { position: true } });
@@ -123,7 +124,7 @@ export async function createProduct(storeId: string, input: ProductInput, s: Ses
       ...data, storeId, ownerId: store.ownerId, category: store.category, subcategory: store.subcategory,
       groupId: input.sectionId ?? null, phone: store.phone, whatsapp: store.whatsapp,
       priceType: "FIXED", priceMinor: input.price, oldPriceMinor: input.oldPrice ?? null, unit: input.unit,
-      available: input.inStock, position: (last._max.position ?? -1) + 1,
+      available: input.inStock, latitude: input.latitude ?? null, longitude: input.longitude ?? null, locationNote: input.locationNote ?? "", position: (last._max.position ?? -1) + 1,
       status: "APPROVED", searchText: search(data),
     },
     select: { id: true, storeId: true, status: true, featuredPosition: true },
@@ -146,7 +147,9 @@ export async function updateProduct(id: string, input: Partial<ProductInput>, s:
   };
   const data: Prisma.ListingUncheckedUpdateInput = {
     ...merged, priceType: "FIXED", priceMinor: price, oldPriceMinor: old ?? null, searchText: search(merged),
-    ...(input.unit ? { unit: input.unit } : {}), ...(input.inStock !== undefined ? { available: input.inStock } : {}),
+    ...(input.unit ? { unit: input.unit } : {}),
+    ...(input.latitude !== undefined ? { latitude: input.latitude ?? null, longitude: input.longitude ?? null } : {}),
+    ...(input.locationNote !== undefined ? { locationNote: input.locationNote } : {}), ...(input.inStock !== undefined ? { available: input.inStock } : {}),
   };
   if ("sectionId" in input && (input.sectionId ?? null) !== cur.groupId) {
     const last = await prisma.listing.aggregate({ where: { storeId: cur.storeId, groupId: input.sectionId ?? null }, _max: { position: true } });
@@ -183,12 +186,12 @@ export async function storeCatalog(slug: string, viewer: Session | null) {
     where: { slug }, omit: { searchText: true },
     include: { owner: OWNER_STATUS, video: true, groups: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] } },
   });
-  if (!store) throw new ApiError("NOT_FOUND");
+  if (!store || store.deletedAt) throw new ApiError("NOT_FOUND");
   const canManage = !!viewer && (viewer.role === "ADMIN" || viewer.sub === store.ownerId);
   const pub = isStorePublic(store);
   if (!pub && !canManage) throw new ApiError("NOT_FOUND");
   const products = await prisma.listing.findMany({
-    where: { storeId: store.id, status: "APPROVED" },
+    where: { storeId: store.id, status: "APPROVED", deletedAt: null },
     orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     select: { ...PRODUCT_SELECT, priceType: true, currency: true },
   });

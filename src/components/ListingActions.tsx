@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Locale } from "@/lib/constants";
 import { dict, href } from "@/lib/i18n";
+import AdminAction from "./AdminAction";
 
 export default function ListingActions({ lang, id, available, showAvailability, admin }: { lang: Locale; id: string; available: boolean; showAvailability: boolean; admin?: boolean }) {
   const t = dict(lang);
@@ -26,9 +27,11 @@ export default function ListingActions({ lang, id, available, showAvailability, 
         <button disabled={busy} className="btn-outline" onClick={() => call(`/api/admin/listings/${id}/status`, "PATCH", { status: "APPROVED" })}>{t.approve}</button>
         <button disabled={busy} className="btn-outline" onClick={() => call(`/api/admin/listings/${id}/status`, "PATCH", { status: "HIDDEN" })}>{t.hide}</button>
       </>}
+      {admin ? <AdminAction lang={lang} kind="listing" id={id} action="delete" /> : <>
       <a className="btn-outline" href={href(lang, `/dashboard/edit/${id}`)}>{t.edit}</a>
       <button disabled={busy} className="btn border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
         onClick={() => confirm(t.confirmDelete) && call(`/api/listings/${id}`, "DELETE")}>{t.delete}</button>
+      </>}
     </div>
   );
 }

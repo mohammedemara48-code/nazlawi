@@ -49,7 +49,7 @@ function assertPrice(v: { priceType?: string; priceMinor?: number | null; oldPri
 }
 
 export async function listListings(q: Omit<ListQuery, "sort"> & { sort?: Sort } & { status?: Status; ownerId?: string; storeId?: string; publicOnly?: boolean }) {
-  const w = q.publicOnly ? { AND: [where(q), LISTING_PUBLIC] } : where(q);
+  const w = q.publicOnly ? { AND: [where(q), LISTING_PUBLIC] } : { AND: [where(q), { deletedAt: null }] };
   const [items, total] = await prisma.$transaction([
     prisma.listing.findMany({
       where: w,
@@ -73,24 +73,24 @@ export async function getListing(id: string, viewer?: Session | null) {
       images: { orderBy: { position: "asc" } },
       video: true,
       owner: OWNER_STATUS,
-      store: { select: { ...STORE_BRIEF.select, status: true, phone: true, whatsapp: true, owner: OWNER_STATUS } },
+      store: { select: { ...STORE_BRIEF.select, status: true, deletedAt: true, latitude: true, longitude: true, addressAr: true, addressEn: true, phone: true, whatsapp: true, owner: OWNER_STATUS } },
     },
   });
-  if (!found) throw new ApiError("NOT_FOUND");
+  if (!found || found.deletedAt || found.store?.deletedAt) throw new ApiError("NOT_FOUND");
   const canManage = !!viewer && (viewer.role === "ADMIN" || viewer.sub === found.ownerId);
   if (!isListingPublic(found) && !canManage) throw new ApiError("NOT_FOUND");
   const { owner: _o, video, store, ...p } = found;
   void _o;
   return {
     ...p,
-    store: store ? { id: store.id, slug: store.slug, nameAr: store.nameAr, nameEn: store.nameEn, logoKey: store.logoKey } : null,
+    store: store ? { id: store.id, slug: store.slug, nameAr: store.nameAr, nameEn: store.nameEn, logoKey: store.logoKey, latitude: store.latitude, longitude: store.longitude, addressAr: store.addressAr, addressEn: store.addressEn } : null,
     video: video && ((video.status === "APPROVED" && video.processing === "READY") || canManage) ? video : null,
   };
 }
 
 async function ownedOrAdmin(id: string, s: Session) {
   const p = await prisma.listing.findUnique({ where: { id } });
-  if (!p) throw new ApiError("NOT_FOUND");
+  if (!p || p.deletedAt) throw new ApiError("NOT_FOUND");
   if (s.role !== "ADMIN" && p.ownerId !== s.sub) throw new ApiError("FORBIDDEN");
   return p;
 }

@@ -5,6 +5,7 @@ import { apiCall } from "@/components/api-client";
 import { uploadTo } from "@/components/upload-client";
 import { compressImage } from "./image-compress";
 import type { MProduct, MSection } from "./types";
+import LocationField, { type Loc } from "@/components/LocationField";
 
 const T = {
   ar: { newTitle: "إضافة منتج", editTitle: "تعديل المنتج", photo: "صورة المنتج", gallery: "من المعرض", camera: "الكاميرا", change: "تغيير الصورة", name: "اسم المنتج", nameEn: "الاسم بالإنجليزي (اختياري)", section: "القسم", other: "أخرى (بدون قسم)", newSection: "+ قسم جديد…", newSectionName: "اسم القسم الجديد", addSection: "إضافة", price: "السعر (جنيه)", unit: "الوحدة", oldPrice: "السعر قبل الخصم (اختياري)", desc: "وصف (اختياري)", descEn: "وصف بالإنجليزي (اختياري)", english: "بيانات بالإنجليزي (اختياري)", inStock: "متوفر حالياً", save: "حفظ", saveAnother: "حفظ وإضافة منتج آخر", cancel: "إلغاء", del: "حذف المنتج", confirmDel: "متأكد إنك عايز تحذف المنتج؟", saving: "جاري الحفظ…", uploading: "جاري رفع الصورة…", saved: "تم الحفظ ✓", photoFailed: "المنتج اتحفظ، لكن الصورة ما اترفعتش:", per: "لكل" },
@@ -23,6 +24,7 @@ export default function ProductForm({ lang, storeId, product, sections, onSectio
   const empty = { nameAr: "", nameEn: "", descAr: "", descEn: "", price: "", oldPrice: "", unit: "piece", inStock: true, sectionId: "" };
   const fromProduct = (p: MProduct) => ({ nameAr: p.nameAr, nameEn: p.nameEn === p.nameAr ? "" : p.nameEn, descAr: p.descAr, descEn: p.descEn, price: p.priceMinor != null ? String(p.priceMinor / 100) : "", oldPrice: p.oldPriceMinor != null ? String(p.oldPriceMinor / 100) : "", unit: p.unit ?? "piece", inStock: p.available, sectionId: p.groupId ?? "" });
   const [f, setF] = useState(product ? fromProduct(product) : empty);
+  const [loc, setLoc] = useState<Loc>({ pin: product?.latitude != null && product?.longitude != null ? { lat: product.latitude, lng: product.longitude } : null, note: product?.locationNote ?? "" });
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(product?.images[0] ? `/api/uploads/${product.images[0].key}` : null);
   const [newSec, setNewSec] = useState<string | null>(null);
@@ -55,7 +57,7 @@ export default function ProductForm({ lang, storeId, product, sections, onSectio
   }
   async function save(another: boolean) {
     setErr(null); setFields([]); setBusy(t.saving);
-    const body = { nameAr: f.nameAr, nameEn: f.nameEn, descAr: f.descAr, descEn: f.descEn, price: digits(f.price), oldPrice: digits(f.oldPrice) || null, unit: f.unit, inStock: f.inStock, sectionId: f.sectionId || null };
+    const body = { nameAr: f.nameAr, nameEn: f.nameEn, descAr: f.descAr, descEn: f.descEn, price: digits(f.price), oldPrice: digits(f.oldPrice) || null, unit: f.unit, inStock: f.inStock, sectionId: f.sectionId || null, latitude: loc.pin?.lat ?? null, longitude: loc.pin?.lng ?? null, locationNote: loc.note };
     const r = product
       ? await apiCall<{ product: MProduct }>(`/api/products/${product.id}`, lang, { method: "PATCH", body })
       : await apiCall<{ product: MProduct }>(`/api/stores/${storeId}/products`, lang, { body });
@@ -75,7 +77,7 @@ export default function ProductForm({ lang, storeId, product, sections, onSectio
     setBusy(null);
     if (another) {
       setF({ ...empty, sectionId: f.sectionId, unit: f.unit });
-      setFile(null); setPreview(null);
+      setFile(null); setPreview(null); setLoc({ pin: null, note: "" });
       setFlash(t.saved);
       setTimeout(() => setFlash(null), 2000);
       first.current?.focus();
@@ -164,6 +166,12 @@ export default function ProductForm({ lang, storeId, product, sections, onSectio
               <div><label className="label" htmlFor="pf-en">{t.nameEn}</label><input id="pf-en" className="input" dir="ltr" value={f.nameEn} onChange={(e) => set("nameEn", e.target.value)} maxLength={100} /></div>
               <div><label className="label" htmlFor="pf-den">{t.descEn}</label><textarea id="pf-den" rows={2} className="input" dir="ltr" value={f.descEn} onChange={(e) => set("descEn", e.target.value)} maxLength={1000} /></div>
             </div>
+          </details>
+          <details className="rounded-xl bg-stone-50 p-3" open={!!loc.pin} data-testid="product-location">
+            <summary className="cursor-pointer text-sm font-semibold text-stone-700">📍 {lang === "en" ? "Different location from the store? (optional)" : "مكان مختلف عن المتجر؟ (اختياري)"}</summary>
+            <div className="mt-3"><LocationField lang={lang} id="pf-loc" value={loc} onChange={setLoc} error={fe("latitude")}
+              title={lang === "en" ? "Product / pickup location (optional)" : "مكان المنتج أو الاستلام (اختياري)"}
+              hint={lang === "en" ? "Leave empty to use the store location." : "سيبه فاضي لو المكان هو نفس مكان المتجر."} /></div>
           </details>
           <label className="flex items-center justify-between rounded-xl bg-stone-50 p-3">
             <span className="font-semibold">{t.inStock}</span>

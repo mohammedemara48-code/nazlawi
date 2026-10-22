@@ -6,6 +6,7 @@
  * Fixtures are created with the "smoke-" prefix and removed at the end. Never point this at production.
  */
 import { spawn, spawnSync } from "node:child_process";
+import { readFileSync, writeFileSync } from "node:fs";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { chromium } from "playwright";
@@ -32,7 +33,12 @@ async function seed() {
     await prisma.listing.create({ data: { storeId: store.id, ownerId: u.id, groupId: g.id, category: "groceries", nameAr: "لبن سموك", nameEn: "Smoke milk", phone: "01012345678", priceType: "FIXED", priceMinor: 3800, unit: "liter", status: "APPROVED", featuredPosition: 1 } });
     return { u, store };
   };
-  return { approved: await mk("approved", "APPROVED"), pending: await mk("pending", "PENDING"), unverified: await mk("unverified", "PENDING", false) };
+  const approved = await mk("approved", "APPROVED");
+  await prisma.store.update({ where: { id: approved.store.id }, data: { latitude: 30.0444, longitude: 31.2357, addressAr: "جنب الجامع الكبير" } });
+  const todelete = await mk("todelete", "APPROVED");
+  const admin = await prisma.user.create({ data: { email: "smoke-admin@nazlawi.test", name: "Smoke admin", role: "ADMIN", password: hash, emailVerified: new Date() } });
+  await prisma.store.create({ data: { slug: "smoke-adminstore", ownerId: admin.id, category: "groceries", nameAr: "متجر الأدمن", nameEn: "Admin store", phone: "01012345678", status: "APPROVED" } });
+  return { approved, todelete, admin, pending: await mk("pending", "PENDING"), unverified: await mk("unverified", "PENDING", false) };
 }
 async function cleanup() {
   await prisma.user.deleteMany({ where: { email: { startsWith: "smoke-" } } });
@@ -45,10 +51,18 @@ async function waitUp() {
 
 async function main() {
   if (!process.env.SMOKE_SKIP_BUILD) {
+    const nextEnv = readFileSync("next-env.d.ts", "utf8"); // next build rewrites it to point at .next-smoke; keep typecheck on .next
     const b = spawnSync("npx", ["next", "build"], { env, stdio: "inherit" });
+    writeFileSync("next-env.d.ts", nextEnv);
     if (b.status !== 0) process.exit(b.status ?? 1);
   }
-  await seed();
+  const fx = await seed();
+  // Dynamic pages stream behind loading.tsx, so a 404 may arrive as 200 + the not-found UI.
+  const notFoundPage = async (page, path) => {
+    const r = await page.goto(BASE + path, { waitUntil: "networkidle" });
+    assert(r.status() === 404 || (await page.getByText("الصفحة غير موجودة").count()) > 0, `${path} still visible (status ${r.status()})`);
+  };
+  const shot = async (page, name) => { if (process.env.SMOKE_SCREENSHOTS) await page.screenshot({ path: `${process.env.SMOKE_SCREENSHOTS}/${name}.png`, fullPage: true }); };
   const server = spawn("npx", ["next", "start", "-p", String(PORT)], { env, stdio: "ignore", detached: true });
   let code = 1;
   try {
@@ -109,6 +123,102 @@ async function main() {
     for (const path of ["/", "/en", "/login", "/signup", "/search?q=test"]) {
       await check(`page ${path} loads`, async () => { const r = await anon.goto(BASE + path); assert(r.ok(), `status ${r.status()}`); });
     }
+    // ---- admin: never owns a store; delete = soft delete, hidden everywhere immediately ----
+    const adm = await newPage("smoke-admin@nazlawi.test");
+    adm.on("dialog", (d) => d.accept());
+    await check("admin: /dashboard and /onboarding redirect to /admin; no dashboard link", async () => {
+      await adm.goto(BASE + "/dashboard", { waitUntil: "networkidle" });
+      assert(/\/admin/.test(new URL(adm.url()).pathname), `dashboard landed on ${adm.url()}`);
+      await adm.goto(BASE + "/onboarding", { waitUntil: "networkidle" });
+      assert(/\/admin/.test(new URL(adm.url()).pathname), `onboarding landed on ${adm.url()}`);
+      assert((await adm.locator('header a[href$="/dashboard"]').count()) === 0, "dashboard link visible for admin");
+    });
+    await check("admin: POST /api/stores → 403 bilingual", async () => {
+      const r = await adm.request.post(BASE + "/api/stores?lang=ar", { data: { nameAr: "متجر", nameEn: "Shop", category: "groceries", phone: "01012345678" } });
+      assert(r.status() === 403, `status ${r.status()}`);
+      assert(((await r.json()).error.message || "").includes("الإدارة"), "message not Arabic");
+    });
+    await check("admin: warning lists stores owned by an admin account", async () => {
+      await adm.goto(BASE + "/admin", { waitUntil: "networkidle" });
+      const box = adm.getByTestId("admin-owned-stores");
+      assert(await box.isVisible(), "warning missing");
+      assert(await box.getByText("متجر الأدمن").isVisible(), "admin store not listed");
+      await shot(adm, "admin-owned-store-warning");
+    });
+    await check("admin: delete store from the stores list → gone from public + list, in trash", async () => {
+      await adm.goto(BASE + "/admin/stores?status=APPROVED", { waitUntil: "networkidle" });
+      await shot(adm, "admin-stores-delete-button");
+      const row = adm.locator("li", { hasText: "متجر todelete" });
+      const [resp] = await Promise.all([
+        adm.waitForResponse((r) => r.url().includes("/api/admin/stores/") && r.request().method() === "DELETE"),
+        row.getByTestId("admin-delete-store").click(),
+      ]);
+      assert(resp.ok(), `delete API ${resp.status()} ${await resp.text()}`);
+      await adm.waitForFunction(() => !document.body.innerText.includes("متجر todelete"), null, { timeout: 15000 });
+      await adm.reload({ waitUntil: "networkidle" });
+      assert((await adm.getByText("متجر todelete").count()) === 0, "deleted store back in the admin list after reload");
+      await notFoundPage(anon, "/s/smoke-todelete");
+      await anon.goto(BASE + "/c/groceries", { waitUntil: "networkidle" });
+      assert((await anon.getByText("متجر todelete").count()) === 0, "deleted store still on category page");
+      const api = await anon.request.get(BASE + "/api/stores?category=groceries");
+      assert(!(await api.text()).includes("smoke-todelete"), "deleted store still in /api/stores");
+      await adm.goto(BASE + "/admin/trash", { waitUntil: "networkidle" });
+      assert(await adm.getByTestId("trash-stores").getByText("متجر todelete").isVisible(), "not in trash");
+      await shot(adm, "admin-trash");
+    });
+    await check("admin: delete product → gone from store page, product page and search", async () => {
+      const l = await prisma.listing.findFirst({ where: { storeId: fx.approved.store.id } });
+      const extra = await prisma.listing.create({ data: { storeId: fx.approved.store.id, ownerId: fx.approved.u.id, category: "groceries", nameAr: "جبنة سموك", nameEn: "Smoke cheese", phone: "01012345678", priceType: "FIXED", priceMinor: 5000, status: "APPROVED" } });
+      void l;
+      const r = await adm.request.delete(BASE + `/api/admin/listings/${extra.id}`);
+      assert(r.ok(), `delete status ${r.status()}`);
+      await anon.goto(BASE + "/s/smoke-approved", { waitUntil: "networkidle" });
+      assert((await anon.getByText("جبنة سموك").count()) === 0, "deleted product still on store page");
+      await notFoundPage(anon, `/p/${extra.id}`);
+      const sr = await anon.request.get(BASE + "/api/listings?q=" + encodeURIComponent("جبنة"));
+      assert(!(await sr.text()).includes(extra.id), "deleted product in search API");
+    });
+    await check("service worker v6 does not cache API responses", async () => {
+      const sw = await (await anon.request.get(BASE + "/sw.js")).text();
+      assert(sw.includes('"v6"'), "sw version not bumped");
+      assert(!/api\\\/\(listings/.test(sw), "sw still caches /api/listings");
+    });
+    await adm.context().close();
+
+    // ---- map location everywhere ----
+    const prov = await newPage("smoke-approved@nazlawi.test");
+    await check("map: resident/profile address picker in settings", async () => {
+      await prov.goto(BASE + "/settings", { waitUntil: "networkidle" });
+      assert(await prov.getByTestId("addr-field").isVisible(), "address map missing");
+      await prov.waitForSelector('[data-testid="addr-field"] .leaflet-container', { timeout: 15000 });
+      await shot(prov, "map-settings-address");
+    });
+    await check("map: product form has optional location picker", async () => {
+      await prov.goto(BASE + "/dashboard?tab=products", { waitUntil: "networkidle" });
+      await prov.getByRole("button", { name: /إضافة منتج/ }).last().click();
+      const d = prov.getByTestId("product-location");
+      await d.locator("summary").click();
+      await prov.waitForSelector('[data-testid="pf-loc-field"] .leaflet-container', { timeout: 15000 });
+      await shot(prov, "map-product-form");
+    });
+    await check("map: legacy listing edit page has location picker", async () => {
+      const l = await prisma.listing.findFirst({ where: { storeId: fx.approved.store.id, deletedAt: null } });
+      await prov.goto(BASE + `/dashboard/edit/${l.id}`, { waitUntil: "networkidle" });
+      assert(await prov.getByTestId("lf-loc-field").isVisible(), "listing location picker missing");
+      await shot(prov, "map-listing-edit");
+    });
+    await prov.context().close();
+    await check("map: store page + product page show map with Google Maps directions", async () => {
+      await anon.goto(BASE + "/s/smoke-approved", { waitUntil: "networkidle" });
+      assert((await anon.locator('a[href^="https://www.google.com/maps/dir/"]').count()) > 0, "store directions link missing");
+      await shot(anon, "map-store-page");
+      const l = await prisma.listing.findFirst({ where: { storeId: fx.approved.store.id, deletedAt: null } });
+      await anon.goto(BASE + `/p/${l.id}`, { waitUntil: "networkidle" });
+      assert(await anon.getByTestId("product-map").isVisible(), "product map missing");
+      assert((await anon.locator('a[href^="https://www.google.com/maps/dir/?api=1&destination=30.0444,31.2357"]').count()) > 0, "product directions link missing");
+      await shot(anon, "map-product-page");
+    });
+
     await check("upload token route requires auth (JSON 401)", async () => {
       const r = await anon.request.post(BASE + "/api/uploads/token", { data: {} });
       assert([401, 404].includes(r.status()), `status ${r.status()}`);

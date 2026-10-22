@@ -16,5 +16,5 @@ export default async function Settings({ params }: Props) {
   if (!s) redirect(href(lang, "/login?next=" + encodeURIComponent(href(lang, "/settings"))));
   const a = await getAccount(s.sub);
   if (!a) redirect(href(lang, "/login"));
-  return <SettingsForms lang={lang} account={{ name: a.name, email: a.email, phone: a.phone, locale: a.locale }} />;
+  return <SettingsForms lang={lang} account={{ name: a.name, email: a.email, phone: a.phone, locale: a.locale, latitude: a.latitude, longitude: a.longitude, addressNote: a.addressNote }} />;
 }
