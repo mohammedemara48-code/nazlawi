@@ -109,3 +109,11 @@ Uploads are queued (`Video.processing = QUEUED`, shown as "جاري المعال
 - `.github/workflows/db-backup.yml` — nightly (03:15 Riyadh) `pg_dump`, AES-256 encrypted with `BACKUP_PASSPHRASE` before upload; artifacts kept 60 days. Secrets: `BACKUP_DATABASE_URL` (direct URL; if unset, `SOURCE_DATABASE_URL` is used), `BACKUP_PASSPHRASE`. Skips quietly until both are set.
 - `.github/workflows/db-copy.yml` — manual one-off copy between databases (`mode=count` compares row counts; `mode=copy` + confirmation text replaces the target). Secrets: `SOURCE_DATABASE_URL`, `TARGET_DATABASE_URL` (direct URLs). Delete both secrets after use.
 - Restore a backup: `gpg -d file.dump.gpg > db.dump && pg_restore --dbname=<url> --no-owner --no-privileges db.dump`.
+
+## 13. Database: Neon (since 2026-10-23)
+Production uses the Neon integration (`NEON_*` vars, Neon `main` branch) because `DB_TARGET=neon` is set for Production.
+The previous Prisma Postgres database (`DATABASE_URL`, `POSTGRES_URL`) is kept untouched for rollback.
+- **Rollback:** Vercel → Project → Settings → Environment Variables → delete `DB_TARGET` (Production) → redeploy production.
+  Writes made on Neon after the cutover are not in Prisma Postgres; copy them back first (`db-copy` with swapped secrets) if needed.
+- Preview deployments get their own Neon branch (`preview/<git-branch>`) from the integration.
+- Nightly backups (`db-backup.yml`) read `TARGET_DATABASE_URL` (Neon) unless `BACKUP_DATABASE_URL` is set.
