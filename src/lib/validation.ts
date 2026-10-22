@@ -185,8 +185,8 @@ export const adminUsersQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(50).default(20),
 });
 export const adminUserUpdateSchema = z
-  .object({ role: z.enum(ROLES).optional(), status: z.enum(USER_STATUSES).optional() })
-  .refine((v) => v.role || v.status, { message: m("لا يوجد تغيير", "Nothing to change") });
+  .object({ role: z.enum(ROLES).optional(), status: z.enum(USER_STATUSES).optional(), verified: z.literal(true).optional() })
+  .refine((v) => v.role || v.status || v.verified, { message: m("لا يوجد تغيير", "Nothing to change") });
 export const pageSchema = z.object({ page: z.coerce.number().int().min(1).default(1), pageSize: z.coerce.number().int().min(1).max(100).default(30) });
 export const statusSchema = z.object({ status: z.enum(STATUSES, { message: m("الحالة غير صحيحة", "Invalid status") }) });
 export const availabilitySchema = z.object({ available: z.boolean() });

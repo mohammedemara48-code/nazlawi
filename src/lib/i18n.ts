@@ -86,6 +86,8 @@ const ar = {
   verifyTitle: "تأكيد البريد الإلكتروني",
   verifying: "جاري التأكيد...",
   verified: "تم تأكيد بريدك الإلكتروني بنجاح.",
+  verifyUser: "تأكيد الحساب",
+  notVerifiedNoEmail: "حسابك اتعمل بنجاح ✅ وفي انتظار تفعيل الإدارة. أول ما الإدارة تأكد حسابك هتقدر تضيف خدماتك.",
   notVerified: "بريدك الإلكتروني لسه متأكدش. افتح الرابط اللي وصلك علشان تقدر تضيف خدمات.",
   resend: "إعادة إرسال رابط التأكيد",
   resent: "تم الإرسال، شوف بريدك.",
@@ -211,6 +213,7 @@ const ar = {
   actions: {
     USER_ROLE_CHANGED: "تغيير صلاحية مستخدم",
     USER_SUSPENDED: "إيقاف مستخدم",
+    USER_VERIFIED_BY_ADMIN: "تأكيد حساب بواسطة الإدارة",
     USER_UNSUSPENDED: "إلغاء إيقاف مستخدم",
     USER_VERIFICATION_RESENT: "إعادة إرسال رابط التأكيد",
     LISTING_STATUS_CHANGED: "تغيير حالة إعلان",
@@ -308,6 +311,8 @@ const en: Dict = {
   verifyTitle: "Email verification",
   verifying: "Verifying...",
   verified: "Your email has been verified.",
+  verifyUser: "Verify account",
+  notVerifiedNoEmail: "Your account was created ✅ and is awaiting admin approval. Once an admin verifies it you can start adding listings.",
   notVerified: "Your email isn't verified yet. Open the link we sent you to start adding listings.",
   resend: "Resend verification link",
   resent: "Sent, check your inbox.",
@@ -433,6 +438,7 @@ const en: Dict = {
   actions: {
     USER_ROLE_CHANGED: "User role changed",
     USER_SUSPENDED: "User suspended",
+    USER_VERIFIED_BY_ADMIN: "Account verified by admin",
     USER_UNSUSPENDED: "User unsuspended",
     USER_VERIFICATION_RESENT: "Verification resent",
     LISTING_STATUS_CHANGED: "Listing status changed",

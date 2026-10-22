@@ -16,6 +16,13 @@ class OutboxMailer implements Mailer {
   }
 }
 
+/** Production without SMTP: never touch the filesystem (read-only on Vercel); just log. */
+class ConsoleMailer implements Mailer {
+  async send(mail: Mail) {
+    console.warn(`[mail] SMTP not configured; email NOT sent. to=${mail.to} subject=${mail.subject}`);
+  }
+}
+
 class SmtpMailer implements Mailer {
   private transport = import("nodemailer").then((n) =>
     n.createTransport({
@@ -30,8 +37,26 @@ class SmtpMailer implements Mailer {
   }
 }
 
+/** True when real emails can be delivered (SMTP configured). */
+export const emailDeliveryEnabled = () => !!process.env.SMTP_HOST;
+const outboxAllowed = () => process.env.NODE_ENV !== "production" && !process.env.VERCEL;
+
+/** Wraps a mailer so delivery failures are logged instead of failing the request (e.g. signup). */
+class SafeMailer implements Mailer {
+  constructor(private inner: Mailer) {}
+  async send(mail: Mail) {
+    try { await this.inner.send(mail); }
+    catch (e) {
+      if (process.env.NODE_ENV === "test") throw e;
+      console.error(`[mail] delivery failed to=${mail.to} subject=${mail.subject}:`, e);
+    }
+  }
+}
+
 const g = globalThis as unknown as { mailer?: Mailer };
-export const mailer: Mailer = (g.mailer ??= process.env.SMTP_HOST ? new SmtpMailer() : new OutboxMailer());
+export const mailer: Mailer = (g.mailer ??= new SafeMailer(
+  process.env.SMTP_HOST ? new SmtpMailer() : outboxAllowed() ? new OutboxMailer() : new ConsoleMailer(),
+));
 
 export async function readOutbox(limit = 50) {
   try {

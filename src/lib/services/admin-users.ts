@@ -28,7 +28,7 @@ export async function listUsers(q: { q?: string; role?: Role; status?: UserStatu
   };
 }
 
-export async function updateUser(admin: Session, id: string, change: { role?: Role; status?: UserStatus }) {
+export async function updateUser(admin: Session, id: string, change: { role?: Role; status?: UserStatus; verified?: true }) {
   const target = await prisma.user.findUnique({ where: { id } });
   if (!target) throw new ApiError("NOT_FOUND");
   const demoting = change.role && change.role !== "ADMIN" && target.role === "ADMIN";
@@ -45,8 +45,10 @@ export async function updateUser(admin: Session, id: string, change: { role?: Ro
     // Suspension kills existing sessions immediately.
     if (change.status === "SUSPENDED") data.sessionVersion = { increment: 1 };
   }
+  if (change.verified && !target.emailVerified) data.emailVerified = new Date();
   const updated = await prisma.user.update({ where: { id }, data, select: { id: true, role: true, status: true } });
   if (data.role) await audit(admin, "USER_ROLE_CHANGED", "USER", id, { email: target.email, from: target.role, to: change.role });
+  if (data.emailVerified) await audit(admin, "USER_VERIFIED_BY_ADMIN", "USER", id, { email: target.email });
   if (data.status) await audit(admin, change.status === "SUSPENDED" ? "USER_SUSPENDED" : "USER_UNSUSPENDED", "USER", id, { email: target.email });
   return updated;
 }

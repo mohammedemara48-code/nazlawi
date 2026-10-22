@@ -1,3 +1,4 @@
+import { emailDeliveryEnabled } from "@/lib/mailer";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -46,8 +47,8 @@ export default async function Dashboard({ params, searchParams }: Props) {
       </div>
       {!user?.emailVerified && (
         <div className="card flex flex-col gap-2 border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
-          <p>{t.notVerified}</p>
-          <ResendVerification lang={lang} />
+          <p>{emailDeliveryEnabled() ? t.notVerified : t.notVerifiedNoEmail}</p>
+          {emailDeliveryEnabled() && <ResendVerification lang={lang} />}
         </div>
       )}
       {!isProvider && <p className="card p-6 text-stone-600">{t.residentNote}</p>}

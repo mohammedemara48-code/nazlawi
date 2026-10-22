@@ -26,6 +26,7 @@ export default function UserActions({ lang, id, role, status, verified, self }: 
       <button disabled={busy} className="btn-outline py-1" onClick={() => call(`/api/admin/users/${id}`, "PATCH", { status: status === "ACTIVE" ? "SUSPENDED" : "ACTIVE" })}>
         {status === "ACTIVE" ? t.suspend : t.unsuspend}
       </button>
+      {!verified && <button disabled={busy} className="btn-primary py-1" onClick={() => call(`/api/admin/users/${id}`, "PATCH", { verified: true })}>{t.verifyUser}</button>}
       {!verified && <button disabled={busy} className="btn-outline py-1" onClick={() => call(`/api/admin/users/${id}/resend-verification`, "POST")}>{t.resend}</button>}
       {self && <span className="text-xs text-stone-500">({t.you})</span>}
       {note && <span role="status" className="text-xs text-red-700">{note}</span>}
