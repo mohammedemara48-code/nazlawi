@@ -104,3 +104,5 @@ Uploads are queued (`Video.processing = QUEUED`, shown as "جاري المعال
 - Sign up, verify email (SMTP must work), make yourself admin (step 7).
 - Upload a store logo and a short video, confirm "جاري المعالجة" turns into the player after the worker/cron runs, approve it in `/admin/videos`.
 - Optional: custom domain in Project → Settings → Domains, then update `APP_URL`.
+
+> Note: Vercel blocks deployments whose commit author email is not linked to a Vercel account. Commit with your GitHub noreply email (or the email on your Vercel account).
