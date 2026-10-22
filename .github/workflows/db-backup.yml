@@ -1,6 +1,6 @@
 name: DB backup (nightly, encrypted)
 # Nightly pg_dump of production, encrypted with a passphrase before upload (the repo is public).
-# Secrets (set by the owner): BACKUP_DATABASE_URL (direct/unpooled postgres:// URL; falls back to SOURCE_DATABASE_URL if unset), BACKUP_PASSPHRASE (long random string).
+# Secrets (set by the owner): BACKUP_DATABASE_URL (direct/unpooled postgres:// URL; falls back to TARGET_DATABASE_URL (Neon), then SOURCE_DATABASE_URL), BACKUP_PASSPHRASE (long random string).
 # Restore: download the artifact, then
 #   gpg --batch --pinentry-mode loopback --passphrase "<passphrase>" -d nazlawi-*.dump.gpg > db.dump
 #   pg_restore --dbname="<new database url>" --no-owner --no-privileges db.dump
@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      DB: ${{ secrets.BACKUP_DATABASE_URL || secrets.SOURCE_DATABASE_URL }}
+      DB: ${{ secrets.BACKUP_DATABASE_URL || secrets.TARGET_DATABASE_URL || secrets.SOURCE_DATABASE_URL }}
       PASS: ${{ secrets.BACKUP_PASSPHRASE }}
     steps:
       - name: Normalize connection strings (strip quotes / NAME= prefix pasted from .env)
@@ -39,7 +39,7 @@ jobs:
         run: |
           umask 077; mkdir -p /tmp/out
           f="nazlawi-$(date -u +%Y%m%dT%H%MZ).dump"
-          pg_dump "$DB" --format=custom --no-owner --no-privileges --file="/tmp/$f"
+          pg_dump "$DB" --format=custom --schema=public --no-owner --no-privileges --file="/tmp/$f"
           printf '%s' "$PASS" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --symmetric --cipher-algo AES256 -o "/tmp/out/$f.gpg" "/tmp/$f"
           shred -u "/tmp/$f"
           ls -la /tmp/out | awk 'NR>1{print $5, $9}'
