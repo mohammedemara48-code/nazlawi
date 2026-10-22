@@ -30,7 +30,7 @@ export const POST = api(async (req) => {
     return NextResponse.json(await handleUpload({ body, request: req, onBeforeGenerateToken: async () => { throw new ApiError("FORBIDDEN"); } }));
   }
   const s = await requireSession(req, ["PROVIDER", "ADMIN"]);
-  await rateLimit(`upload-token:${s.sub}`, 30, 60 * 60_000);
+  await rateLimit(`upload-token:${s.sub}`, 200, 60 * 60_000);
   const result = await handleUpload({
     body,
     request: req,

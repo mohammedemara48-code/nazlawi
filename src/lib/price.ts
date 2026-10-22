@@ -1,6 +1,6 @@
-import type { Locale } from "./constants";
+import { UNIT_LABELS, type Locale, type Unit } from "./constants";
 
-export type Priced = { priceType: string; priceMinor: number | null; oldPriceMinor?: number | null; currency: string; unitAr?: string; unitEn?: string };
+export type Priced = { priceType: string; priceMinor: number | null; oldPriceMinor?: number | null; currency: string; unitAr?: string; unitEn?: string; unit?: string | null };
 
 /** "١٥٠ ج.م" / "EGP 150" (no decimals when whole pounds). */
 export function formatMoney(minor: number, currency: string, lang: Locale) {
@@ -13,7 +13,8 @@ export function formatMoney(minor: number, currency: string, lang: Locale) {
 
 /** Structured price for display: main label, optional old price and discount %. */
 export function formatPrice(p: Priced, lang: Locale) {
-  const unit = (lang === "en" ? p.unitEn : p.unitAr)?.trim();
+  const code = p.unit && p.unit in UNIT_LABELS ? UNIT_LABELS[p.unit as Unit][lang] : null;
+  const unit = code ?? (lang === "en" ? p.unitEn : p.unitAr)?.trim();
   const withUnit = (s: string) => (unit ? `${s} / ${unit}` : s);
   if (p.priceType === "ON_REQUEST" || p.priceMinor == null) {
     const label = p.priceType === "NEGOTIABLE" ? (lang === "en" ? "Negotiable" : "قابل للتفاوض") : lang === "en" ? "Price on request" : "السعر عند الطلب";

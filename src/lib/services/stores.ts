@@ -90,9 +90,10 @@ export async function setStoreStatus(id: string, status: Status, admin: Session)
   return store;
 }
 
+/** Featured items first (1..3); if the store featured nothing, its first items in catalog order. */
 const FEATURED_SELECT = {
-  where: { ...LISTING_PUBLIC, featuredPosition: { not: null } },
-  orderBy: { featuredPosition: "asc" },
+  where: { ...LISTING_PUBLIC },
+  orderBy: [{ featuredPosition: { sort: "asc", nulls: "last" } }, { available: "desc" }, { position: "asc" }, { createdAt: "asc" }],
   take: MAX_FEATURED,
   omit: { searchText: true },
   include: { images: { orderBy: { position: "asc" }, take: 1 } },

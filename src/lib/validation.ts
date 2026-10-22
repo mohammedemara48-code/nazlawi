@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CATEGORIES, CURRENCIES, MAX_PRICE_MINOR, MEDICAL_SUBS, PRICE_TYPES, PROMOTION_STATUSES, SORTS, ROLES, STATUSES, USER_STATUSES, VIDEO_STATUSES } from "./constants";
+import { UNITS, CATEGORIES, CURRENCIES, MAX_PRICE_MINOR, MEDICAL_SUBS, PRICE_TYPES, PROMOTION_STATUSES, SORTS, ROLES, STATUSES, USER_STATUSES, VIDEO_STATUSES } from "./constants";
 
 // Messages are bilingual "ar|en"; errors.ts picks the right half.
 const m = (ar: string, en: string) => `${ar}|${en}`;
@@ -37,6 +37,18 @@ const medicalMsg = { message: m("اختر نوع الخدمة الطبية", "Ch
 const text = (max: number) => z.string().trim().max(max, m("النص طويل جداً", "Text is too long"));
 
 /** Store = the provider's mini store. Category (section) is required at onboarding. */
+const hhmm = z.string().trim().regex(/^([01]\d|2[0-3]):[0-5]\d$/, m("الوقت غير صحيح (مثال 09:00)", "Invalid time (e.g. 09:00)"));
+/** Egyptian mobile → E.164 (+2010/11/12/15 + 8 digits). Accepts 01xxxxxxxxx, 201xxxxxxxxx, +201xxxxxxxxx, 00201…; Arabic digits too. */
+export function toEgE164(raw: string): string | null {
+  const d = raw.replace(/[\u0660-\u0669]/g, (c) => String(c.charCodeAt(0) - 0x0660)).replace(/[\s\-()]/g, "").replace(/^00/, "+");
+  const m1 = /^(?:\+?20|0)?(1[0125]\d{8})$/.exec(d);
+  return m1 ? `+20${m1[1]}` : null;
+}
+export const egWhatsapp = z.string().transform((v, ctx) => {
+  const e = toEgE164(v);
+  if (!e) { ctx.addIssue({ code: z.ZodIssueCode.custom, message: m("رقم واتساب مصري غير صحيح (مثال 01012345678)", "Invalid Egyptian WhatsApp number (e.g. 01012345678)") }); return z.NEVER; }
+  return e;
+});
 const storeBase = z.object({
   category: z.enum(CATEGORIES, { message: m("اختر القسم", "Choose a section") }),
   subcategory: sub.nullish(),
@@ -45,10 +57,14 @@ const storeBase = z.object({
   bioAr: text(600).default(""),
   bioEn: text(600).default(""),
   phone,
-  whatsapp: phone.nullish().or(z.literal("").transform(() => null)),
+  whatsapp: z.literal("").transform(() => null).or(egWhatsapp).nullish(),
   addressAr: text(200).default(""),
   addressEn: text(200).default(""),
   area: text(80).default(""),
+  openTime: hhmm.nullish().or(z.literal("").transform(() => null)),
+  closeTime: hhmm.nullish().or(z.literal("").transform(() => null)),
+  hoursNoteAr: text(120).default(""),
+  hoursNoteEn: text(120).default(""),
   latitude: z.coerce.number().min(-90, m("خط العرض غير صحيح", "Invalid latitude")).max(90, m("خط العرض غير صحيح", "Invalid latitude")).nullish(),
   longitude: z.coerce.number().min(-180, m("خط الطول غير صحيح", "Invalid longitude")).max(180, m("خط الطول غير صحيح", "Invalid longitude")).nullish(),
 });
@@ -198,3 +214,40 @@ export const availabilitySchema = z.object({ available: z.boolean() });
 export type ListingInput = z.infer<typeof listingCreateSchema>;
 export type StoreInput = z.infer<typeof storeCreateSchema>;
 export type ListQuery = z.infer<typeof listQuerySchema>;
+
+// ---------- Merchant catalog (sections + products) ----------
+const nameAr = (max: number) => z.string().trim().min(1, m("الاسم بالعربي مطلوب", "Arabic name is required")).max(max, m("الاسم طويل جداً", "Name is too long"));
+const optName = (max: number) => z.string().trim().max(max, m("الاسم طويل جداً", "Name is too long")).optional().default("");
+export const sectionSchema = z.object({ nameAr: nameAr(40), nameEn: optName(40) });
+export const sectionUpdateSchema = sectionSchema.partial();
+export const reorderSchema = z.object({
+  ids: z.array(z.string().cuid()).max(500).refine((a) => new Set(a).size === a.length, m("في عنصر مكرر", "Duplicate item")),
+});
+/** Money in major units (EGP), max 2 decimals → integer piasters. */
+const moneyReq = () => z.coerce.number({ message: m("السعر لازم يكون رقم", "Price must be a number") })
+    .positive(m("السعر لازم يكون أكبر من صفر", "Price must be greater than zero"))
+    .max(MAX_PRICE_MINOR / 100, m("السعر كبير جداً", "Price is too large"))
+    .refine((v) => Math.abs(Math.round(v * 100) - v * 100) < 1e-6, m("السعر يقبل قرشين بعد العلامة بحد أقصى", "Use at most 2 decimals"))
+    .transform((v) => Math.round(v * 100));
+const moneyOpt = () => z.preprocess((v) => (v === "" || v == null ? null : v), moneyReq().nullable()).optional();
+const productFields = {
+  sectionId: z.string().cuid().nullish(),
+  nameAr: nameAr(100),
+  nameEn: optName(100),
+  descAr: text(1000).default(""),
+  descEn: text(1000).default(""),
+  price: moneyReq(),
+  oldPrice: moneyOpt(),
+  unit: z.enum(UNITS, { message: m("اختر الوحدة", "Choose a unit") }).default("piece"),
+  inStock: z.boolean().default(true),
+  featured: z.boolean().optional(),
+};
+const oldPriceRule = (v: { price?: number | null; oldPrice?: number | null }, ctx: z.RefinementCtx) => {
+  if (v.oldPrice != null && v.price != null && v.oldPrice <= v.price)
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["oldPrice"], message: m("السعر قبل الخصم لازم يكون أكبر من السعر الحالي", "Old price must be higher than the current price") });
+};
+export const productCreateSchema = z.object(productFields).superRefine(oldPriceRule);
+export const productUpdateSchema = z.object(productFields).partial().superRefine(oldPriceRule);
+export const productQuickSchema = z.object({ price: moneyReq().optional(), oldPrice: moneyOpt(), inStock: z.boolean().optional(), featured: z.boolean().optional() })
+  .refine((v) => Object.values(v).some((x) => x !== undefined), m("لا يوجد تغيير", "Nothing to change")).superRefine(oldPriceRule);
+export type ProductInput = z.infer<typeof productCreateSchema>;

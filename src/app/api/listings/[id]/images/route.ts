@@ -11,7 +11,7 @@ type Ctx = { params: Promise<{ id: string }> };
 export const POST = api<Ctx>(async (req, { params }) => {
   const { id } = await params;
   const s = await requireSession(req, ["PROVIDER", "ADMIN"]);
-  await rateLimit(`upload:${s.sub}`, 30, 60 * 60_000);
+  await rateLimit(`upload:${s.sub}`, 200, 60 * 60_000);
   if (Number(req.headers.get("content-length") || 0) > MAX_IMAGE_BYTES + 64 * 1024) throw new ApiError("FILE_TOO_LARGE");
   const { upload: file } = await readUpload(req, s);
   const image = await addListingImage(id, file, s);

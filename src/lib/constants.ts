@@ -21,3 +21,19 @@ export const CURRENCIES = ["EGP"] as const;
 export const MAX_PRICE_MINOR = 10_000_000_000; // 100M EGP
 export const SORTS = ["newest", "price_asc", "price_desc"] as const;
 export type Sort = (typeof SORTS)[number];
+
+/** Product units (merchant catalog). Labels: [ar, en, ar "per", en "per"]. */
+export const UNITS = ["piece", "kg", "gram", "liter", "box", "carton", "pack", "dozen"] as const;
+export type Unit = (typeof UNITS)[number];
+export const UNIT_LABELS: Record<Unit, { ar: string; en: string }> = {
+  piece: { ar: "القطعة", en: "piece" },
+  kg: { ar: "الكيلو", en: "kg" },
+  gram: { ar: "الجرام", en: "gram" },
+  liter: { ar: "اللتر", en: "liter" },
+  box: { ar: "العلبة", en: "box" },
+  carton: { ar: "الكرتونة", en: "carton" },
+  pack: { ar: "العبوة", en: "pack" },
+  dozen: { ar: "الدستة", en: "dozen" },
+};
+export const MAX_SECTIONS = 30;
+export const MAX_PRODUCTS = 500;

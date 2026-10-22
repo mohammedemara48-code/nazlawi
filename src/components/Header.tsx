@@ -14,15 +14,15 @@ export default async function Header({ lang }: { lang: Locale }) {
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
         <Link href={href(lang)} className="flex items-center gap-2">
           <img src="/icon.svg" alt="" width={36} height={36} className="rounded-lg" />
-          <span className="font-serif text-2xl font-bold text-[#C0532F]">{t.appName}</span>
+          <span className="font-serif text-xl font-bold text-[#C0532F] sm:text-2xl">{t.appName}</span>
         </Link>
-        <nav className="flex items-center gap-2 text-sm">
+        <nav className="flex min-w-0 items-center gap-1.5 text-sm sm:gap-2">
           <Suspense><LangSwitch lang={lang} label={t.switchLang} /></Suspense>
           {s ? (
             <>
-              {s.role === "ADMIN" && <Link className="btn-outline" href={href(lang, "/admin")}>{t.admin}</Link>}
-              <Link className="btn-outline" href={href(lang, "/dashboard")}>{t.dashboard}</Link>
-              <Link className="btn-outline" href={href(lang, "/settings")}>{t.settings}</Link>
+              {s.role === "ADMIN" && <Link className="btn-outline px-3 sm:px-4" href={href(lang, "/admin")} aria-label={t.admin} title={t.admin}><span aria-hidden className="sm:hidden">🛡️</span><span className="hidden sm:inline">{t.admin}</span></Link>}
+              <Link className="btn-outline px-3 sm:px-4" href={href(lang, "/dashboard")} aria-label={t.dashboard} title={t.dashboard}><span aria-hidden className="sm:hidden">🏪</span><span className="hidden sm:inline">{t.dashboard}</span></Link>
+              <Link className="btn-outline px-3 sm:px-4" href={href(lang, "/settings")} aria-label={t.settings} title={t.settings}><span aria-hidden className="sm:hidden">⚙️</span><span className="hidden sm:inline">{t.settings}</span></Link>
               <LogoutButton lang={lang} label={t.logout} />
             </>
           ) : (

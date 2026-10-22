@@ -126,7 +126,7 @@ export async function createListing(input: ListingInput, s: Session) {
       category: store.category,
       subcategory: store.subcategory,
       searchText: buildSearch(data),
-      status: s.role === "ADMIN" ? "APPROVED" : "PENDING",
+      status: "APPROVED", // published immediately; admins can hide (audited)
     },
     omit: { searchText: true },
   });
@@ -140,7 +140,8 @@ export async function updateListing(id: string, input: Partial<Omit<ListingInput
   const merged = { ...cur, ...input };
   assertPrice(merged);
   const contentChanged = (["nameAr", "nameEn", "descAr", "descEn"] as const).some((k) => k in input && input[k] !== cur[k]);
-  const backToReview = contentChanged && s.role !== "ADMIN" && cur.status === "APPROVED";
+  const backToReview = false; // products publish immediately (no re-review on edit)
+  void contentChanged;
   const updated = await prisma.listing.update({
     where: { id },
     data: { ...input, searchText: buildSearch(merged), ...(backToReview ? { status: "PENDING", featuredPosition: null } : {}) },

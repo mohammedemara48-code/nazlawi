@@ -51,7 +51,8 @@ async function seller(email: string, body: Record<string, unknown> = storeBody) 
 async function listing(c: string, o: Record<string, unknown> = {}, approve = true) {
   const { status, body } = await json(await createListingApi(req("/api/listings", { method: "POST", body: priced(o), cookie: c }), {}));
   expect(status).toBe(201);
-  if (approve) await prisma.listing.update({ where: { id: body.listing.id }, data: { status: "APPROVED" } });
+  expect(body.listing.status).toBe("APPROVED"); // products publish immediately
+  if (!approve) await prisma.listing.update({ where: { id: body.listing.id }, data: { status: "HIDDEN" } }); // hidden by admin
   return body.listing.id as string;
 }
 

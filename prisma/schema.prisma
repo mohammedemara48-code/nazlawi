@@ -52,6 +52,10 @@ model Store {
   addressAr   String   @default("")
   addressEn   String   @default("")
   area        String   @default("")
+  openTime    String? // "HH:MM" (Africa/Cairo), null = hours not set
+  closeTime   String?
+  hoursNoteAr String   @default("")
+  hoursNoteEn String   @default("")
   latitude    Float?
   longitude   Float?
   logoKey     String?
@@ -80,6 +84,8 @@ model ListingGroup {
   nameEn   String
   position Int       @default(0)
   listings Listing[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([storeId, position])
 }
@@ -107,6 +113,8 @@ model Listing {
   currency         String   @default("EGP")
   unitAr           String   @default("") // e.g. "للكيلو"
   unitEn           String   @default("") // e.g. "per kg"
+  unit             String? // product unit code: piece|kg|gram|liter|box|carton|pack|dozen (labels in i18n)
+  position         Int      @default(0) // order inside its section (merchant-defined)
   status           String   @default("PENDING") // PENDING | APPROVED | HIDDEN
   featuredPosition Int? // 1..3 when featured on the store, null otherwise
   isExample        Boolean  @default(false)
@@ -121,7 +129,7 @@ model Listing {
 
   @@index([status, category, subcategory])
   @@index([storeId, status, featuredPosition])
-  @@index([storeId, groupId])
+  @@index([storeId, groupId, position])
   @@index([storeId, status, priceMinor])
   @@index([category, status, priceMinor])
   @@index([ownerId])

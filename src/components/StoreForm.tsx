@@ -8,7 +8,7 @@ import CategoryIcon from "./CategoryIcon";
 import MapPicker from "./MapPicker";
 
 type S = Omit<Store, "searchText">;
-type TextField = "nameAr" | "nameEn" | "bioAr" | "bioEn" | "phone" | "whatsapp" | "addressAr" | "addressEn" | "area";
+type TextField = "nameAr" | "nameEn" | "bioAr" | "bioEn" | "phone" | "whatsapp" | "addressAr" | "addressEn" | "area" | "hoursNoteAr" | "hoursNoteEn";
 
 /** Onboarding (create) and store editing. The section (category) is chosen from the six tabs. */
 export default function StoreForm({ lang, initial }: { lang: Locale; initial?: S }) {
@@ -29,7 +29,7 @@ export default function StoreForm({ lang, initial }: { lang: Locale; initial?: S
     const r = await apiCall(initial ? `/api/stores/${initial.id}` : "/api/stores", lang, { method: initial ? "PATCH" : "POST", body });
     setBusy(false);
     if (!r.ok) { setErr(r.error); setFields(r.details); return; }
-    window.location.href = href(lang, initial ? "/dashboard" : "/dashboard/store");
+    window.location.href = href(lang, initial ? "/dashboard?tab=info" : "/dashboard?tab=products");
   }
   const F = ({ name, label, ltr, area }: { name: TextField; label: string; ltr?: boolean; area?: boolean }) => (
     <div>
@@ -73,10 +73,23 @@ export default function StoreForm({ lang, initial }: { lang: Locale; initial?: S
         {F({ name: "bioAr", label: t.bioAr, area: true })}
         {F({ name: "bioEn", label: t.bioEn, ltr: true, area: true })}
         {F({ name: "phone", label: t.phone, ltr: true })}
-        {F({ name: "whatsapp", label: t.whatsappNum, ltr: true })}
+        <div>
+          {F({ name: "whatsapp", label: t.whatsappNum, ltr: true })}
+          <p className="mt-1 text-xs text-stone-500">{lang === "en" ? "Egyptian mobile, e.g. 01012345678 — customers order products through it." : "موبايل مصري، مثال 01012345678 — الزباين هيطلبوا المنتجات عليه."}</p>
+        </div>
         {F({ name: "addressAr", label: t.addressAr })}
         {F({ name: "addressEn", label: t.addressEn, ltr: true })}
         {F({ name: "area", label: t.area })}
+        <fieldset className="grid grid-cols-2 gap-3 sm:col-span-2">
+          <legend className="label col-span-2">{lang === "en" ? "Opening hours (optional)" : "مواعيد العمل (اختياري)"}</legend>
+          <label className="text-sm">{lang === "en" ? "Opens" : "بيفتح"}
+            <input type="time" name="openTime" className="input" dir="ltr" defaultValue={initial?.openTime ?? ""} /></label>
+          <label className="text-sm">{lang === "en" ? "Closes" : "بيقفل"}
+            <input type="time" name="closeTime" className="input" dir="ltr" defaultValue={initial?.closeTime ?? ""} /></label>
+          {(fe("openTime") || fe("closeTime")) && <p className="col-span-2 text-xs text-red-600">{fe("openTime") ?? fe("closeTime")}</p>}
+        </fieldset>
+        {F({ name: "hoursNoteAr", label: lang === "en" ? "Hours note (Arabic), e.g. closed Friday" : "ملاحظة المواعيد، مثال: الجمعة إجازة" })}
+        {F({ name: "hoursNoteEn", label: lang === "en" ? "Hours note (English)" : "ملاحظة المواعيد (إنجليزي)", ltr: true })}
         <MapPicker lang={lang} value={pin} onChange={setPin} error={fe("latitude") ?? fe("longitude")} />
       </div>
       <p className="text-xs text-stone-500">{t.storeReviewNote}</p>
