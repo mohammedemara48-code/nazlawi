@@ -1,0 +1,17 @@
+name: 🐞 Bug report / بلاغ عن مشكلة
+description: Something is broken / حاجة مش شغالة
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes: { label: What happened? / إيه اللي حصل؟, description: Steps to reproduce, expected vs actual }
+    validations: { required: true }
+  - type: input
+    id: url
+    attributes: { label: Page URL / رابط الصفحة }
+  - type: dropdown
+    id: platform
+    attributes: { label: Platform / المنصة, options: [Website (mobile), Website (desktop), Android app] }
+  - type: textarea
+    id: shots
+    attributes: { label: Screenshots / صور }

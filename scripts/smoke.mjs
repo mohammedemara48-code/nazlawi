@@ -132,6 +132,48 @@ async function main() {
     for (const path of ["/", "/en", "/login", "/signup", "/search?q=test"]) {
       await check(`page ${path} loads`, async () => { const r = await anon.goto(BASE + path); assert(r.ok(), `status ${r.status()}`); });
     }
+    await check("security headers (CSP allows OSM tiles + Blob, frame-ancestors none, HSTS, nosniff)", async () => {
+      const r = await anon.request.get(BASE + "/");
+      const h = r.headers();
+      const csp = h["content-security-policy"] || "";
+      for (const part of ["tile.openstreetmap.org", "blob.vercel-storage.com", "frame-ancestors 'none'"]) assert(csp.includes(part), `CSP missing ${part}`);
+      assert(h["x-content-type-options"] === "nosniff", "nosniff missing");
+      assert((h["strict-transport-security"] || "").includes("max-age"), "HSTS missing");
+      assert((h["permissions-policy"] || "").includes("geolocation=(self)"), "Permissions-Policy missing geolocation");
+    });
+    await check("robots.txt + sitemap.xml list public store/product, not pending", async () => {
+      const rb = await (await anon.request.get(BASE + "/robots.txt")).text();
+      assert(rb.includes("Sitemap:") && rb.includes("/admin"), "robots.txt incomplete");
+      const sm = await (await anon.request.get(BASE + "/sitemap.xml")).text();
+      assert(sm.includes("/s/smoke-approved") && sm.includes("/en/s/smoke-approved"), "approved store missing from sitemap");
+      assert(!sm.includes("/s/smoke-pending"), "pending store in sitemap");
+    });
+    await check("store + product pages: Open Graph + JSON-LD (LocalBusiness, Product with price)", async () => {
+      await anon.goto(BASE + "/s/smoke-approved", { waitUntil: "networkidle" });
+      assert((await anon.locator('meta[property="og:title"]').count()) > 0, "og:title missing on store");
+      const ld = await anon.locator('script[type="application/ld+json"]').first().textContent();
+      assert(ld && JSON.parse(ld)["@type"] === "LocalBusiness", "LocalBusiness JSON-LD missing");
+      const prod = await prisma.listing.findFirst({ where: { storeId: fx.approved.store.id } });
+      await anon.goto(BASE + `/p/${prod.id}`, { waitUntil: "networkidle" });
+      const pl = JSON.parse((await anon.locator('script[type="application/ld+json"]').first().textContent()) || "{}");
+      assert(pl["@type"] === "Product" && pl.offers?.price === "38.00", `Product JSON-LD wrong: ${JSON.stringify(pl).slice(0, 120)}`);
+    });
+    for (const path of ["/privacy", "/terms", "/en/privacy", "/en/terms"]) {
+      await check(`legal page ${path} renders + linked in footer`, async () => {
+        const r = await anon.goto(BASE + path, { waitUntil: "networkidle" });
+        assert(r.ok(), `status ${r.status()}`);
+        assert(await anon.getByTestId("legal-doc").isVisible(), "legal doc missing");
+        assert((await anon.locator(`footer a[href$="${path.replace("/en", "")}"]`).count()) > 0, "footer link missing");
+      });
+    }
+    await check("map tiles load under CSP (no CSP violations on store page)", async () => {
+      const errs = [];
+      anon.on("console", (m) => { if (/Content Security Policy/i.test(m.text())) errs.push(m.text()); });
+      await anon.goto(BASE + "/s/smoke-approved", { waitUntil: "networkidle" });
+      await anon.waitForTimeout(1500);
+      assert(errs.length === 0, `CSP violation: ${errs[0]}`);
+      assert((await anon.locator(".leaflet-container").count()) > 0, "map missing");
+    });
     // ---- admin: never owns a store; delete = soft delete, hidden everywhere immediately ----
     const adm = await newPage("smoke-admin@nazlawi.test");
     adm.on("dialog", (d) => d.accept());

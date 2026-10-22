@@ -1,3 +1,4 @@
+import { siteUrl } from "@/lib/site";
 import type { Metadata, Viewport } from "next";
 import NativeBridge from "@/components/NativeBridge";
 import { Cairo, Amiri } from "next/font/google";
@@ -17,14 +18,18 @@ export const generateStaticParams = () => LOCALES.map((lang) => ({ lang }));
 export const viewport: Viewport = { themeColor: "#D4704A" };
 
 export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
-  const t = dict(asLocale((await params).lang));
+  const lang = asLocale((await params).lang);
+  const t = dict(lang);
   return {
     title: { default: `${t.appName} | ${t.tagline}`, template: `%s | ${t.appName}` },
     description: t.heroSub,
     manifest: "/manifest.webmanifest",
     icons: { icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/icons/icon-192.png", sizes: "192x192" }] },
     appleWebApp: { capable: true, title: t.appName },
+    metadataBase: new URL(siteUrl()),
     alternates: { languages: { ar: "/", en: "/en" } },
+    openGraph: { type: "website", siteName: t.appName, title: `${t.appName} | ${t.tagline}`, description: t.heroSub, locale: lang === "en" ? "en_US" : "ar_EG", images: [{ url: "/village-hero.jpg" }] },
+    twitter: { card: "summary_large_image" },
   };
 }
 

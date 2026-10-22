@@ -12,6 +12,8 @@ import StoreMap from "@/components/StoreMap";
 import StoreCatalog from "@/components/StoreCatalog";
 import { cairoMinutes, isOpenAt, waOrderLink } from "@/lib/store-hours";
 import { toEgE164 } from "@/lib/validation";
+import { mediaUrl } from "@/lib/services/media";
+import { abs, jsonLd } from "@/lib/site";
 
 type Props = { params: Promise<{ lang: string; slug: string }> };
 export const dynamic = "force-dynamic";
@@ -24,7 +26,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { lang, slug } = await params;
   const d = await load(slug);
   if (!d) return { title: dict(asLocale(lang)).notFound };
-  return { title: lang === "en" ? d.store.nameEn : d.store.nameAr, description: lang === "en" ? d.store.bioEn : d.store.bioAr };
+  const title = lang === "en" ? d.store.nameEn : d.store.nameAr;
+  const description = (lang === "en" ? d.store.bioEn : d.store.bioAr) || undefined;
+  const img = mediaUrl(d.store.coverKey ?? d.store.logoKey);
+  const path = `/s/${slug}`;
+  return {
+    title, description,
+    alternates: { canonical: lang === "en" ? `/en${path}` : path, languages: { ar: path, en: `/en${path}` } },
+    openGraph: { type: "website", title, description, url: lang === "en" ? `/en${path}` : path, ...(img ? { images: [{ url: img }] } : {}) },
+    ...(d.public ? {} : { robots: { index: false } }),
+  };
 }
 
 export default async function StorePage({ params }: Props) {
@@ -44,6 +55,16 @@ export default async function StorePage({ params }: Props) {
   const hasPin = store.latitude != null && store.longitude != null;
   return (
     <div className="space-y-5">
+      {d.public && <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd({
+        "@context": "https://schema.org", "@type": "LocalBusiness",
+        name: lang === "en" ? d.store.nameEn : d.store.nameAr,
+        description: (lang === "en" ? d.store.bioEn : d.store.bioAr) || undefined,
+        url: abs(href(lang, `/s/${d.store.slug}`)),
+        image: mediaUrl(d.store.coverKey ?? d.store.logoKey) ? abs(mediaUrl(d.store.coverKey ?? d.store.logoKey)!) : undefined,
+        telephone: d.store.phone || undefined,
+        address: (d.store.addressAr || d.store.addressEn) ? { "@type": "PostalAddress", streetAddress: (lang === "en" ? d.store.addressEn : d.store.addressAr) || d.store.addressAr || d.store.addressEn, addressCountry: "EG" } : undefined,
+        geo: d.store.latitude != null && d.store.longitude != null ? { "@type": "GeoCoordinates", latitude: d.store.latitude, longitude: d.store.longitude } : undefined,
+      })} />}
       {!d.public && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{t.storePending}</p>}
       <header className="card overflow-hidden">
         <div className="h-32 bg-gradient-to-l from-[#F2D49B] to-[#E8955F] bg-cover bg-center sm:h-52" style={store.coverKey ? { backgroundImage: `url(/api/uploads/${store.coverKey})` } : undefined} />

@@ -1,0 +1,9 @@
+node_modules
+.next
+.next-smoke
+mobile/android
+mobile/www
+package-lock.json
+prisma/migrations
+docs/screenshots
+uploads

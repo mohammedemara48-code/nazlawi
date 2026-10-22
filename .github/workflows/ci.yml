@@ -1,0 +1,56 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: nazlawi
+          POSTGRES_PASSWORD: nazlawi
+          POSTGRES_DB: nazlawi
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U nazlawi" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Throwaway CI-only values (local service container); no production secrets are used.
+      DATABASE_URL: postgresql://nazlawi:nazlawi@localhost:5432/nazlawi
+      DIRECT_URL: postgresql://nazlawi:nazlawi@localhost:5432/nazlawi
+      TEST_DATABASE_URL: postgresql://nazlawi:nazlawi@localhost:5432/nazlawi_test
+      AUTH_SECRET: ci-only-not-a-secret-ci-only-not-a-secret
+      CRON_SECRET: ci-only
+      APP_URL: http://localhost:3197
+      STORAGE_DRIVER: local
+      UPLOAD_DIR: ./uploads
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: System deps (ffmpeg for video tests)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Create test database
+        run: PGPASSWORD=nazlawi psql -h localhost -U nazlawi -d nazlawi -c "CREATE DATABASE nazlawi_test;"
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - name: Smoke suite (Playwright, local DB)
+        run: |
+          npx prisma migrate deploy
+          npx playwright install --with-deps chromium
+          env | grep -E '^(DATABASE_URL|DIRECT_URL|AUTH_SECRET|CRON_SECRET|APP_URL|STORAGE_DRIVER|UPLOAD_DIR)=' > .env
+          npm run smoke

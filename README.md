@@ -7,9 +7,9 @@
 **كل اللي محتاجه في القرية… بضغطة واحدة**<br/>
 *Everything you need in the village, one tap away.*
 
-[🌐 Live site](https://nazlawi-bwfg-waslapp.vercel.app) · [📱 Android APK](https://github.com/mohammedemara48-code/nazlawi/releases/latest) · [🚀 Deploy guide](docs/DEPLOY.md) · [🤖 Android guide](docs/ANDROID.md) · [🧱 Architecture & API](docs/ARCHITECTURE.md)
+[🌐 Live website](https://nazlawi-bwfg-waslapp.vercel.app) · [📱 Download Android APK](https://github.com/mohammedemara48-code/nazlawi/releases/latest/download/nazlawi.apk) · [🚀 Deploy guide](docs/DEPLOY.md) · [🤖 Android guide](docs/ANDROID.md) · [🧱 Architecture & API](docs/ARCHITECTURE.md)
 
-![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=nextdotjs) ![Prisma](https://img.shields.io/badge/Prisma-Postgres-2D3748?logo=prisma) ![Vercel](https://img.shields.io/badge/Vercel-Blob-000?logo=vercel) ![Leaflet](https://img.shields.io/badge/Maps-Leaflet%20%2B%20OSM-199900?logo=leaflet) ![Android](https://img.shields.io/badge/Android-Capacitor-3DDC84?logo=android)
+[![CI](https://github.com/mohammedemara48-code/nazlawi/actions/workflows/ci.yml/badge.svg)](https://github.com/mohammedemara48-code/nazlawi/actions/workflows/ci.yml) ![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=nextdotjs) ![Prisma](https://img.shields.io/badge/Prisma-Postgres-2D3748?logo=prisma) ![Vercel](https://img.shields.io/badge/Vercel-Blob-000?logo=vercel) ![Leaflet](https://img.shields.io/badge/Maps-Leaflet%20%2B%20OSM-199900?logo=leaflet) ![Android](https://img.shields.io/badge/Android-Capacitor-3DDC84?logo=android)
 
 </div>
 
@@ -97,5 +97,17 @@ tests/          Vitest suites
 docs/           deploy & Android guides, architecture, screenshots
 ```
 
+## Roadmap
+- [ ] Custom domain + production SMTP (verification / reset emails)
+- [ ] Google Play release (signed AAB) and push notifications (Firebase)
+- [ ] Order tracking and delivery requests inside the app
+- [ ] Ratings and reviews for stores
+- [ ] Online payment for promotions
+- [ ] Merchant analytics (views, WhatsApp taps)
+- [ ] Error monitoring and automated database backups
+
+## Project docs
+[CHANGELOG](CHANGELOG.md) · [Security policy](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Privacy](https://nazlawi-bwfg-waslapp.vercel.app/privacy) · [Terms](https://nazlawi-bwfg-waslapp.vercel.app/terms)
+
 ## License
-All rights reserved © Nazlawi.
+Proprietary — all rights reserved © Nazlawi. See [LICENSE](LICENSE).

@@ -1,0 +1,8 @@
+name: ✨ Feature request / اقتراح ميزة
+description: Suggest an improvement / اقترح تحسين
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes: { label: Idea / الفكرة, description: What problem does it solve? }
+    validations: { required: true }

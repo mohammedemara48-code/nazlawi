@@ -9,6 +9,8 @@ import { getListing } from "@/lib/services/listings";
 import { ApiError } from "@/lib/errors";
 import PriceTag from "@/components/PriceTag";
 import StoreMap from "@/components/StoreMap";
+import { mediaUrl } from "@/lib/services/media";
+import { abs, jsonLd } from "@/lib/site";
 
 type Props = { params: Promise<{ lang: string; id: string }> };
 export const dynamic = "force-dynamic";
@@ -22,7 +24,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await load(id);
   const t = dict(asLocale(lang));
   if (!p) return { title: t.notFound };
-  return { title: lang === "en" ? p.nameEn : p.nameAr, description: lang === "en" ? p.descEn : p.descAr };
+  const title = lang === "en" ? p.nameEn : p.nameAr;
+  const description = (lang === "en" ? p.descEn : p.descAr) || undefined;
+  const img = mediaUrl(p.images[0]?.key);
+  const path = `/p/${id}`;
+  return {
+    title, description,
+    alternates: { canonical: lang === "en" ? `/en${path}` : path, languages: { ar: path, en: `/en${path}` } },
+    openGraph: { type: "website", title, description, url: lang === "en" ? `/en${path}` : path, ...(img ? { images: [{ url: img }] } : {}) },
+    ...(p.status === "APPROVED" ? {} : { robots: { index: false } }),
+  };
 }
 const waLink = (n: string) => `https://wa.me/${n.replace(/^\+/, "").replace(/^0/, "20")}`;
 
@@ -36,6 +47,18 @@ export default async function ProviderPage({ params }: Props) {
   const desc = lang === "en" ? p.descEn : p.descAr;
   return (
     <article className="mx-auto max-w-3xl space-y-5">
+      {p.status === "APPROVED" && <script type="application/ld+json" dangerouslySetInnerHTML={jsonLd({
+        "@context": "https://schema.org", "@type": "Product", name, description: desc || undefined,
+        image: p.images.map((i) => mediaUrl(i.key)).filter(Boolean).map((u) => abs(u!)),
+        url: abs(href(lang, `/p/${p.id}`)),
+        ...(p.store ? { brand: { "@type": "Brand", name: lang === "en" ? p.store.nameEn : p.store.nameAr } } : {}),
+        ...(p.priceMinor != null ? { offers: {
+          "@type": "Offer", price: (p.priceMinor / 100).toFixed(2), priceCurrency: p.currency || "EGP",
+          availability: p.available === false ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+          url: abs(href(lang, `/p/${p.id}`)),
+          ...(p.store ? { seller: { "@type": "LocalBusiness", name: lang === "en" ? p.store.nameEn : p.store.nameAr } } : {}),
+        } } : {}),
+      })} />}
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <Link href={href(lang, `/c/${p.category}`)} className="text-[#C0532F]">← {t.categories[p.category as Category][0]}</Link>
         {p.store && <Link href={href(lang, `/s/${p.store.slug}`)} className="font-semibold text-[#C0532F]">🏪 {lang === "en" ? p.store.nameEn : p.store.nameAr}</Link>}
