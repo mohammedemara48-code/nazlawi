@@ -158,6 +158,12 @@ async function main() {
       const pl = JSON.parse((await anon.locator('script[type="application/ld+json"]').first().textContent()) || "{}");
       assert(pl["@type"] === "Product" && pl.offers?.price === "38.00", `Product JSON-LD wrong: ${JSON.stringify(pl).slice(0, 120)}`);
     });
+    await check("forgot-password is honest when no email provider is configured", async () => {
+      await anon.goto(BASE + "/forgot-password", { waitUntil: "networkidle" });
+      assert(await anon.getByTestId("forgot-unavailable").isVisible(), "page still offers an email reset without a provider");
+      const r = await anon.request.post(BASE + "/api/auth/forgot-password", { data: { email: "nobody@nazlawi.test" } });
+      assert(r.ok() && (await r.json()).emailEnabled === false, "API should report emailEnabled=false");
+    });
     for (const path of ["/privacy", "/terms", "/en/privacy", "/en/terms"]) {
       await check(`legal page ${path} renders + linked in footer`, async () => {
         const r = await anon.goto(BASE + path, { waitUntil: "networkidle" });

@@ -37,8 +37,22 @@ class SmtpMailer implements Mailer {
   }
 }
 
-/** True when real emails can be delivered (SMTP configured). */
-export const emailDeliveryEnabled = () => !!process.env.SMTP_HOST;
+/** Resend HTTP API (https://resend.com). Needs RESEND_API_KEY and MAIL_FROM (a sender on a domain verified in Resend). */
+export class ResendMailer implements Mailer {
+  constructor(private key: string, private fetchImpl: typeof fetch = fetch) {}
+  async send(mail: Mail) {
+    const res = await this.fetchImpl("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${this.key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: process.env.MAIL_FROM || "Nazlawi <onboarding@resend.dev>", to: [mail.to], subject: mail.subject, text: mail.text, ...(mail.html ? { html: mail.html } : {}) }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) throw new Error(`Resend ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  }
+}
+
+/** True when real emails can be delivered (Resend or SMTP configured). */
+export const emailDeliveryEnabled = () => !!(process.env.RESEND_API_KEY || process.env.SMTP_HOST);
 const outboxAllowed = () => process.env.NODE_ENV !== "production" && !process.env.VERCEL;
 
 /** Wraps a mailer so delivery failures are logged instead of failing the request (e.g. signup). */
@@ -55,7 +69,7 @@ class SafeMailer implements Mailer {
 
 const g = globalThis as unknown as { mailer?: Mailer };
 export const mailer: Mailer = (g.mailer ??= new SafeMailer(
-  process.env.SMTP_HOST ? new SmtpMailer() : outboxAllowed() ? new OutboxMailer() : new ConsoleMailer(),
+  process.env.RESEND_API_KEY ? new ResendMailer(process.env.RESEND_API_KEY) : process.env.SMTP_HOST ? new SmtpMailer() : outboxAllowed() ? new OutboxMailer() : new ConsoleMailer(),
 ));
 
 export async function readOutbox(limit = 50) {

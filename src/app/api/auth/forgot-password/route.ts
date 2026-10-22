@@ -3,6 +3,7 @@ import { api, readJson } from "@/lib/errors";
 import { rateLimit, clientIp } from "@/lib/ratelimit";
 import { forgotSchema } from "@/lib/validation";
 import { requestPasswordReset } from "@/lib/services/tokens";
+import { emailDeliveryEnabled } from "@/lib/mailer";
 
 // Always returns 200 so the endpoint can't be used to discover registered emails.
 export const POST = api(async (req, _ctx, locale) => {
@@ -10,5 +11,6 @@ export const POST = api(async (req, _ctx, locale) => {
   const { email } = forgotSchema.parse(await readJson(req));
   await rateLimit(`forgot-email:${email}`, 3, 15 * 60_000);
   await requestPasswordReset(email, locale);
-  return NextResponse.json({ ok: true });
+  // emailEnabled is the same for every address, so it reveals nothing about accounts.
+  return NextResponse.json({ ok: true, emailEnabled: emailDeliveryEnabled() });
 });
