@@ -35,6 +35,11 @@ export default function MediaUploader({ lang, url, fields, target, accept, label
           {busy ? `${busyLabel ?? t.uploading}${pct != null ? ` ${pct}%` : ""}` : `⬆ ${label}`}
           <input type="file" accept={accept} className="hidden" onChange={upload} disabled={busy} />
         </label>
+        {/* Phones (incl. the Android app): open the camera directly. */}
+        <label className={`btn-outline cursor-pointer text-sm sm:hidden ${busy ? "opacity-50" : ""}`}>
+          📷 {t.camera}
+          <input type="file" accept={accept} capture="environment" className="hidden" onChange={upload} disabled={busy} aria-label={t.camera} />
+        </label>
         {deleteUrl && (
           <button type="button" className="btn border border-red-200 bg-red-50 text-sm text-red-700" disabled={busy}
             onClick={async () => { if (confirm(t.confirmDelete)) { await apiCall(deleteUrl, lang, { method: "DELETE" }); router.refresh(); } }}>{t.delete}</button>

@@ -40,10 +40,16 @@ export default function ImageManager({ lang, listingId, initial, max }: { lang: 
         ))}
       </div>
       {imgs.length < max && (
-        <label className={`btn-outline cursor-pointer ${busy ? "opacity-50" : ""}`}>
-          {busy ? t.uploading : `+ ${t.upload}`}
-          <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={upload} disabled={busy} />
-        </label>
+        <div className="flex flex-wrap gap-2">
+          <label className={`btn-outline cursor-pointer ${busy ? "opacity-50" : ""}`}>
+            {busy ? t.uploading : `+ ${t.upload}`}
+            <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={upload} disabled={busy} />
+          </label>
+          <label className={`btn-outline cursor-pointer sm:hidden ${busy ? "opacity-50" : ""}`}>
+            📷 {t.camera}
+            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={upload} disabled={busy} aria-label={t.camera} />
+          </label>
+        </div>
       )}
     </section>
   );

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import NativeBridge from "@/components/NativeBridge";
 import { Cairo, Amiri } from "next/font/google";
 import { notFound } from "next/navigation";
 import "../globals.css";
@@ -34,6 +35,7 @@ export default async function Layout({ children, params }: { children: React.Rea
   return (
     <html lang={l} dir={l === "ar" ? "rtl" : "ltr"} className={`${sans.variable} ${serif.variable}`}>
       <body className="flex min-h-screen flex-col overflow-x-hidden font-sans">
+        <NativeBridge />
         <Header lang={l} />
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">{children}</main>
         <Footer lang={l} />

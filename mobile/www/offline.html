@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>نزلاوي — لا يوجد اتصال</title>
+<script src="app-config.js"></script>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #FBF3EA; color: #2B1D16;
+         font-family: system-ui, "Noto Sans Arabic", "Segoe UI", Tahoma, sans-serif; padding: 24px; text-align: center; }
+  .card { max-width: 380px; width: 100%; background: #fff; border-radius: 24px; padding: 32px 24px; box-shadow: 0 10px 30px rgba(43,29,22,.08); }
+  svg { width: 88px; height: 88px; }
+  h1 { font-size: 22px; margin: 16px 0 8px; }
+  p { margin: 0 0 6px; color: #6b5a50; line-height: 1.6; }
+  .en { direction: ltr; font-size: 14px; color: #8a7a70; margin-top: 12px; }
+  button { margin-top: 20px; width: 100%; border: 0; border-radius: 14px; padding: 14px; font-size: 16px; font-weight: 700; background: #D4704A; color: #fff; }
+  button:active { background: #B85A37; }
+  .status { min-height: 1.4em; font-size: 13px; color: #8a7a70; margin-top: 10px; }
+</style>
+</head>
+<body>
+<main class="card" role="main">
+  <svg viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="112" fill="#D4704A"/><path d="M256 96c-70 0-126 56-126 126 0 92 126 202 126 202s126-110 126-202c0-70-56-126-126-126z" fill="#FBF3EA"/><path d="M256 168l-62 50v66h40v-40h44v40h40v-66z" fill="#D4704A"/></svg>
+  <h1>لا يوجد اتصال بالإنترنت</h1>
+  <p>اتأكد إن الواي فاي أو بيانات الموبايل شغالة وجرّب تاني.</p>
+  <p class="en">You're offline. Check Wi‑Fi or mobile data and try again.</p>
+  <button id="retry" type="button">إعادة المحاولة · Retry</button>
+  <div class="status" id="status" aria-live="polite"></div>
+</main>
+<script>
+  var target = window.NAZLAWI_SERVER_URL || "/";
+  var statusEl = document.getElementById("status");
+  function retry() {
+    statusEl.textContent = "جاري المحاولة… · Retrying…";
+    location.replace(target);
+  }
+  document.getElementById("retry").addEventListener("click", retry);
+  // Come back automatically when the connection returns.
+  window.addEventListener("online", retry);
+</script>
+</body>
+</html>

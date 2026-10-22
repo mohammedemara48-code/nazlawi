@@ -181,7 +181,8 @@ See **DEPLOY.md** (Arabic + English) for the Vercel + Neon Postgres + Vercel Blo
 Image/video upload endpoints accept multipart `file` **or** JSON `{sourceKey}` (direct upload).
 
 ## PWA / Android
-`public/manifest.webmanifest`, icons in `public/icons/`, minimal `public/sw.js`. To wrap with Capacitor later: deploy the site, then `npx cap init` and point `server.url` at the deployed URL (or export a static shell).
+Android app: Capacitor shell in `mobile/` — see **ANDROID.md** (build, signing, Play upload, push).
+`public/manifest.webmanifest`, icons in `public/icons/`, minimal `public/sw.js`.
 
 ## Environment
 See `.env.example`: `DATABASE_URL`, `AUTH_SECRET`, `APP_URL` (used in email links), `SMTP_*` + `MAIL_FROM` (empty `SMTP_HOST` = dev outbox), `REDIS_URL` (optional), `UPLOAD_DIR`.
