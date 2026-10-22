@@ -106,6 +106,6 @@ Uploads are queued (`Video.processing = QUEUED`, shown as "جاري المعال
 > Note: Vercel blocks deployments whose commit author email is not linked to a Vercel account. Commit with your GitHub noreply email (or the email on your Vercel account).
 
 ## 12. Backups & database copy
-- `.github/workflows/db-backup.yml` — nightly (03:15 Riyadh) `pg_dump`, AES-256 encrypted with `BACKUP_PASSPHRASE` before upload; artifacts kept 60 days. Secrets: `BACKUP_DATABASE_URL` (direct URL), `BACKUP_PASSPHRASE`. Skips quietly until both are set.
+- `.github/workflows/db-backup.yml` — nightly (03:15 Riyadh) `pg_dump`, AES-256 encrypted with `BACKUP_PASSPHRASE` before upload; artifacts kept 60 days. Secrets: `BACKUP_DATABASE_URL` (direct URL; if unset, `SOURCE_DATABASE_URL` is used), `BACKUP_PASSPHRASE`. Skips quietly until both are set.
 - `.github/workflows/db-copy.yml` — manual one-off copy between databases (`mode=count` compares row counts; `mode=copy` + confirmation text replaces the target). Secrets: `SOURCE_DATABASE_URL`, `TARGET_DATABASE_URL` (direct URLs). Delete both secrets after use.
 - Restore a backup: `gpg -d file.dump.gpg > db.dump && pg_restore --dbname=<url> --no-owner --no-privileges db.dump`.

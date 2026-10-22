@@ -1,6 +1,6 @@
 name: DB backup (nightly, encrypted)
 # Nightly pg_dump of production, encrypted with a passphrase before upload (the repo is public).
-# Secrets (set by the owner): BACKUP_DATABASE_URL (direct/unpooled postgres:// URL), BACKUP_PASSPHRASE (long random string).
+# Secrets (set by the owner): BACKUP_DATABASE_URL (direct/unpooled postgres:// URL; falls back to SOURCE_DATABASE_URL if unset), BACKUP_PASSPHRASE (long random string).
 # Restore: download the artifact, then
 #   gpg --batch --pinentry-mode loopback --passphrase "<passphrase>" -d nazlawi-*.dump.gpg > db.dump
 #   pg_restore --dbname="<new database url>" --no-owner --no-privileges db.dump
@@ -15,12 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      DB: ${{ secrets.BACKUP_DATABASE_URL }}
+      DB: ${{ secrets.BACKUP_DATABASE_URL || secrets.SOURCE_DATABASE_URL }}
       PASS: ${{ secrets.BACKUP_PASSPHRASE }}
     steps:
       - name: Check secrets
         run: |
-          if [ -z "$DB" ] || [ -z "$PASS" ]; then echo "::warning::BACKUP_DATABASE_URL / BACKUP_PASSPHRASE not set; skipping"; echo "SKIP=1" >> "$GITHUB_ENV"; fi
+          if [ -z "$DB" ] || [ -z "$PASS" ]; then echo "::warning::BACKUP_DATABASE_URL (or SOURCE_DATABASE_URL) / BACKUP_PASSPHRASE not set; skipping"; echo "SKIP=1" >> "$GITHUB_ENV"; fi
           if [ -n "$PASS" ] && [ ${#PASS} -lt 20 ]; then echo "::error::BACKUP_PASSPHRASE must be at least 20 characters"; exit 1; fi
       - name: Install PostgreSQL 17 client
         if: env.SKIP != '1'
