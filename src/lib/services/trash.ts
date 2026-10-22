@@ -67,7 +67,7 @@ export async function purgeStore(id: string, s: Session | null) {
   await prisma.store.delete({ where: { id } });
   await dropFiles(keys);
   if (s) await audit(s, "STORE_PURGED", "STORE", id, { name: st.nameEn, slug: st.slug, files: keys.length });
-  await revalidatePublic();
+  await revalidatePublic([`/s/${st.slug}`, `/en/s/${st.slug}`]);
 }
 
 export async function softDeleteListing(id: string, s: Session) {
@@ -100,7 +100,7 @@ export async function purgeListing(id: string, s: Session | null) {
   if (l.storeId && l.featuredPosition != null) await compactFeatured(l.storeId);
   await dropFiles(keys);
   if (s) await audit(s, "LISTING_PURGED", "LISTING", id, { name: l.nameEn, files: keys.length });
-  await revalidatePublic();
+  await revalidatePublic([`/p/${id}`, `/en/p/${id}`]);
 }
 
 /** Cron: permanently remove anything soft-deleted more than TRASH_DAYS ago. */

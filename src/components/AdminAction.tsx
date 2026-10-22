@@ -7,14 +7,13 @@ import { apiCall } from "./api-client";
 type Kind = "store" | "listing";
 type Action = "delete" | "restore" | "purge";
 const L = {
-  delete: { ar: "حذف", en: "Delete" },
+  delete: { ar: "حذف نهائي", en: "Delete permanently" },
   restore: { ar: "استرجاع", en: "Restore" },
   purge: { ar: "حذف نهائي", en: "Delete permanently" },
 };
 function question(kind: Kind, action: Action, en: boolean) {
   const what = kind === "store" ? (en ? "this store (and all its products)" : "المتجر ده (وكل منتجاته)") : (en ? "this product" : "المنتج ده");
-  if (action === "delete") return en ? `Delete ${what}? It disappears from the site immediately. You can restore it from Trash for 30 days, then it's removed permanently.` : `حذف ${what}؟ هيختفي من الموقع فوراً. تقدر تسترجعه من "المحذوفات" خلال 30 يوم، بعدها يتحذف نهائياً.`;
-  if (action === "purge") return en ? `Permanently delete ${what}? Photos and videos are removed too. This can't be undone.` : `حذف ${what} نهائياً؟ الصور والفيديوهات هتتمسح كمان. مفيش رجوع.`;
+  if (action === "delete" || action === "purge") return en ? `⚠️ Permanently delete ${what}?\n\nEverything is removed from the database and storage: ${kind === "store" ? "products, sections, promotions, " : ""}photos and videos. It disappears from the site immediately.\n\nThis can't be undone.` : `⚠️ حذف ${what} نهائياً؟\n\nكل حاجة هتتمسح من قاعدة البيانات والتخزين: ${kind === "store" ? "المنتجات والأقسام والعروض و" : ""}الصور والفيديوهات. هيختفي من الموقع فوراً.\n\nمفيش رجوع.`;
   return en ? `Restore ${what}?` : `استرجاع ${what}؟`;
 }
 
@@ -30,7 +29,7 @@ export default function AdminAction({ lang, kind, id, action }: { lang: Locale; 
     if (!window.confirm(question(kind, action, en))) return;
     setBusy(true);
     const r = action === "restore" ? await apiCall(`${base}/restore`, lang, { method: "POST" })
-      : await apiCall(action === "purge" ? `${base}?hard=1` : base, lang, { method: "DELETE" });
+      : await apiCall(base, lang, { method: "DELETE" });
     setBusy(false);
     setErr(r.ok ? null : r.error);
     // Remove the row right away (don't wait for the server re-render), then refresh the list from the server.

@@ -1,9 +1,8 @@
 # النشر على Vercel / Deploying to Vercel
 
-> الحالة: المشروع **جاهز** للنشر لكنه **لم يُنشر**. لا توجد حسابات أو موارد سحابية مُنشأة بعد.
-> Status: the project is **ready** to deploy but has **not** been deployed. No cloud accounts or resources exist yet.
+> Live: https://nazlawi-bwfg-waslapp.vercel.app
 
-Production stack: **Vercel** (Next.js) + **Postgres** (Neon via the Vercel Marketplace, or any Postgres) + **Vercel Blob** (private store) + **Upstash Redis** (rate limiting) + a **video worker** (Railway/Fly, or Vercel Cron for short clips).
+Production stack: **Vercel** (Next.js) + **Postgres** (Neon via the Vercel Marketplace, or any Postgres) + **Vercel Blob** (set `BLOB_ACCESS` to match the store's access mode) + **Upstash Redis** (rate limiting) + a **video worker** (Railway/Fly, or Vercel Cron for short clips).
 
 ---
 
@@ -17,7 +16,6 @@ Production stack: **Vercel** (Next.js) + **Postgres** (Neon via the Vercel Marke
 git remote add origin git@github.com:<you>/nazlawi.git
 git push -u origin main
 ```
-(المستودع المحلي فيه commit أول نظيف بدون أسرار. / The local repo already has a clean first commit with no secrets.)
 
 ## 2. أنشئ مشروع Vercel / Create the Vercel project
 1. Vercel → **Add New… → Project** → Import the GitHub repo.

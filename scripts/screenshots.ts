@@ -14,7 +14,7 @@ if (!/^http:\/\/(localhost|127\.0\.0\.1)/.test(BASE)) throw new Error("Screensho
   const shot = async (path: string, file: string) => {
     const r = await page.goto(BASE + path, { waitUntil: "networkidle" });
     console.log(path, r?.status(), await page.title());
-    await page.screenshot({ path: `screenshots/${file}`, fullPage: true });
+    await page.screenshot({ path: `docs/screenshots/${file}`, fullPage: true });
   };
   await shot("/", "home-ar.png");
   await shot("/en", "home-en.png");
@@ -69,14 +69,14 @@ if (!/^http:\/\/(localhost|127\.0\.0\.1)/.test(BASE)) throw new Error("Screensho
   await page.fill("#email", "resident@example.com");
   await page.click("form button.btn-primary");
   await page.waitForSelector("[role=status]");
-  await page.screenshot({ path: "screenshots/forgot-password-sent-ar.png", fullPage: true });
+  await page.screenshot({ path: "docs/screenshots/forgot-password-sent-ar.png", fullPage: true });
   await shot("/dev/outbox", "dev-outbox-ar.png");
   const link = await page.locator("a[href*='reset-password?token=']").first().getAttribute("href");
   await shot(new URL(link!).pathname + new URL(link!).search, "reset-password-ar.png");
   await page.fill("#password", "password123");
   await page.click("form button.btn-primary");
   await page.waitForSelector("[role=status]");
-  await page.screenshot({ path: "screenshots/reset-password-done-ar.png", fullPage: true });
+  await page.screenshot({ path: "docs/screenshots/reset-password-done-ar.png", fullPage: true });
 
   // Offline: in a fresh context, let the SW install, visit a page (so it is "recently viewed"),
   // then go offline and navigate once. A fresh context per shot because Chromium can restart an
@@ -91,7 +91,7 @@ if (!/^http:\/\/(localhost|127\.0\.0\.1)/.test(BASE)) throw new Error("Screensho
     await op.waitForTimeout(800);
     await off.setOffline(true);
     await op.goto(BASE + path);
-    await op.screenshot({ path: `screenshots/${file}`, fullPage: true });
+    await op.screenshot({ path: `docs/screenshots/${file}`, fullPage: true });
     console.log("offline", path, "->", await op.title());
     await off.close();
   }
@@ -99,7 +99,7 @@ if (!/^http:\/\/(localhost|127\.0\.0\.1)/.test(BASE)) throw new Error("Screensho
   const m = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
   const mp = await m.newPage();
   await mp.goto(BASE + "/", { waitUntil: "networkidle" });
-  await mp.screenshot({ path: "screenshots/home-ar-mobile.png", fullPage: true });
+  await mp.screenshot({ path: "docs/screenshots/home-ar-mobile.png", fullPage: true });
   console.log("errors:", errors.length ? errors : "none");
   await browser.close();
 })();

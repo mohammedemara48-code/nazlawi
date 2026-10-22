@@ -15,7 +15,7 @@ if (!/^http:\/\/(localhost|127\.0\.0\.1)/.test(BASE)) throw new Error("Screensho
   const shot = async (page: Page, path: string, file: string, full = true) => {
     const r = await page.goto(BASE + path, { waitUntil: "networkidle" });
     console.log(path, r?.status());
-    await page.screenshot({ path: `screenshots/${file}`, fullPage: full });
+    await page.screenshot({ path: `docs/screenshots/${file}`, fullPage: full });
   };
   const login = async (page: Page, email: string, lang = "") => {
     await page.goto(`${BASE}${lang}/login`);

@@ -99,6 +99,15 @@ async function main() {
         assert(page.url().includes("tab=info"), `landed on ${page.url()}`);
         assert(await page.getByTestId("upload-logo").isVisible(), "logo upload missing after redirect");
       });
+      await check(`promote tab (${kind}): promotion form visible`, async () => {
+        await page.goto(BASE + "/dashboard", { waitUntil: "networkidle" });
+        assert(await page.getByRole("tab", { name: "الترويج" }).isVisible(), "promote tab missing from nav");
+        await page.goto(BASE + "/dashboard?tab=promote", { waitUntil: "networkidle" });
+        const tab = page.getByTestId("promote-tab");
+        assert(await tab.isVisible(), "promote tab content missing");
+        assert(await tab.locator('select[name="target"]').isVisible(), "promotion target select missing");
+        assert(await tab.locator('input[name="startsAt"]').isVisible(), "promotion dates missing");
+      });
       await check(`sections tab (${kind})`, async () => {
         await page.goto(BASE + "/dashboard?tab=sections", { waitUntil: "networkidle" });
         assert(await page.getByText("ألبان").first().isVisible(), "section missing");
@@ -145,7 +154,7 @@ async function main() {
       assert(await box.getByText("متجر الأدمن").isVisible(), "admin store not listed");
       await shot(adm, "admin-owned-store-warning");
     });
-    await check("admin: delete store from the stores list → gone from public + list, in trash", async () => {
+    await check("admin: delete store from the stores list → permanently deleted (DB rows gone), gone from public + list", async () => {
       await adm.goto(BASE + "/admin/stores?status=APPROVED", { waitUntil: "networkidle" });
       await shot(adm, "admin-stores-delete-button");
       const row = adm.locator("li", { hasText: "متجر todelete" });
@@ -162,9 +171,9 @@ async function main() {
       assert((await anon.getByText("متجر todelete").count()) === 0, "deleted store still on category page");
       const api = await anon.request.get(BASE + "/api/stores?category=groceries");
       assert(!(await api.text()).includes("smoke-todelete"), "deleted store still in /api/stores");
-      await adm.goto(BASE + "/admin/trash", { waitUntil: "networkidle" });
-      assert(await adm.getByTestId("trash-stores").getByText("متجر todelete").isVisible(), "not in trash");
-      await shot(adm, "admin-trash");
+      assert((await prisma.store.count({ where: { id: fx.todelete.store.id } })) === 0, "store row still in DB (not hard-deleted)");
+      assert((await prisma.listing.count({ where: { storeId: fx.todelete.store.id } })) === 0, "products of deleted store still in DB");
+      assert((await prisma.listingGroup.count({ where: { storeId: fx.todelete.store.id } })) === 0, "sections of deleted store still in DB");
     });
     await check("admin: delete product → gone from store page, product page and search", async () => {
       const l = await prisma.listing.findFirst({ where: { storeId: fx.approved.store.id } });
@@ -177,6 +186,7 @@ async function main() {
       await notFoundPage(anon, `/p/${extra.id}`);
       const sr = await anon.request.get(BASE + "/api/listings?q=" + encodeURIComponent("جبنة"));
       assert(!(await sr.text()).includes(extra.id), "deleted product in search API");
+      assert((await prisma.listing.count({ where: { id: extra.id } })) === 0, "product row still in DB (not hard-deleted)");
     });
     await check("service worker v6 does not cache API responses", async () => {
       const sw = await (await anon.request.get(BASE + "/sw.js")).text();

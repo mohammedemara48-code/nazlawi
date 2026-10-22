@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: dict(asLocale((await params).lang)).dashboard };
 }
-const TABS = { products: { ar: "المنتجات", en: "Products" }, sections: { ar: "الأقسام", en: "Sections" }, info: { ar: "بيانات المتجر", en: "Store info" } } as const;
+const TABS = { products: { ar: "المنتجات", en: "Products" }, sections: { ar: "الأقسام", en: "Sections" }, info: { ar: "بيانات المتجر", en: "Store info" }, promote: { ar: "الترويج", en: "Promote" } } as const;
 const badge: Record<string, string> = { PENDING: "bg-amber-100 text-amber-800", APPROVED: "bg-emerald-100 text-emerald-800", HIDDEN: "bg-stone-200 text-stone-600" };
 
 export default async function Dashboard({ params, searchParams }: Props) {
@@ -37,7 +37,7 @@ export default async function Dashboard({ params, searchParams }: Props) {
   if (s.role === "PROVIDER" && !store && user?.emailVerified) redirect(href(lang, "/onboarding"));
   const sp = await searchParams;
   const page = Math.max(1, Number(sp.page) || 1);
-  const tab = sp.tab === "sections" || sp.tab === "info" ? sp.tab : "products";
+  const tab = sp.tab === "sections" || sp.tab === "info" || sp.tab === "promote" ? sp.tab : "products";
   const [res, promos] = store ? await Promise.all([listListings({ storeId: store.id, page, pageSize: 50 }), myPromotions(s.sub)]) : [null, []];
   const name = store ? (lang === "en" ? store.nameEn : store.nameAr) : "";
   const [products, sections] = store ? await Promise.all([listProducts(store.id, s), listSections(store.id, s)]) : [null, null];
@@ -81,7 +81,7 @@ export default async function Dashboard({ params, searchParams }: Props) {
           )}
           {store.status !== "APPROVED" && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{t.storePending}</p>}
           <nav role="tablist" aria-label={lang === "en" ? "My store" : "متجري"} className="sticky top-0 z-30 -mx-4 flex gap-1 bg-[#FBF3EA]/95 px-4 py-2 backdrop-blur">
-            {(["products", "sections", "info"] as const).map((k) => (
+            {(["products", "sections", "info", "promote"] as const).map((k) => (
               <Link key={k} role="tab" aria-selected={tab === k} href={href(lang, `/dashboard?tab=${k}`)} scroll={false}
                 className={`flex-1 rounded-xl px-3 py-2 text-center text-sm font-semibold ${tab === k ? "bg-[#C0532F] text-white shadow" : "bg-white text-stone-700 ring-1 ring-stone-200"}`}>
                 {TABS[k][lang]}
@@ -93,9 +93,9 @@ export default async function Dashboard({ params, searchParams }: Props) {
           {tab === "info" && (
             <>
               <StoreInfoPanel lang={lang} store={store} />
-              <PromotionPanel lang={lang} storeId={store.id} listings={res.items.filter((i) => i.status === "APPROVED")} promos={promos} />
             </>
           )}
+          {tab === "promote" && <div data-testid="promote-tab"><PromotionPanel lang={lang} storeId={store.id} listings={res.items.filter((i) => i.status === "APPROVED")} promos={promos} /></div>}
         </>
       )}
     </div>

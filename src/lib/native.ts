@@ -21,7 +21,7 @@ export const isNativeApp = () => !!capacitor()?.isNativePlatform?.() || (typeof 
 /**
  * Push notifications hook (Firebase Cloud Messaging via @capacitor/push-notifications).
  * Disabled until a Firebase project exists: set NEXT_PUBLIC_PUSH_ENABLED=1 AND ship the app with
- * android/app/google-services.json (see ANDROID.md). Calling register() without Firebase config crashes the app,
+ * android/app/google-services.json (see docs/ANDROID.md). Calling register() without Firebase config crashes the app,
  * so both are required.
  * onToken: send the FCM token to the server (TODO: POST /api/me/push-tokens once the backend side exists).
  */
