@@ -6,7 +6,7 @@
  * Fixtures are created with the "smoke-" prefix and removed at the end. Never point this at production.
  */
 import { spawn, spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { chromium } from "playwright";
@@ -51,9 +51,9 @@ async function waitUp() {
 
 async function main() {
   if (!process.env.SMOKE_SKIP_BUILD) {
-    const nextEnv = readFileSync("next-env.d.ts", "utf8"); // next build rewrites it to point at .next-smoke; keep typecheck on .next
+    const nextEnv = existsSync("next-env.d.ts") ? readFileSync("next-env.d.ts", "utf8") : null; // next build rewrites it to point at .next-smoke; keep typecheck on .next
     const b = spawnSync("npx", ["next", "build"], { env, stdio: "inherit" });
-    writeFileSync("next-env.d.ts", nextEnv);
+    if (nextEnv !== null) writeFileSync("next-env.d.ts", nextEnv);
     if (b.status !== 0) process.exit(b.status ?? 1);
   }
   const fx = await seed();
