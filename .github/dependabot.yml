@@ -4,6 +4,10 @@ updates:
     directory: /
     schedule: { interval: weekly }
     open-pull-requests-limit: 5
+    ignore:
+      # Major upgrades (Next 16, Prisma 7, Zod 4, Tailwind 4, …) need a planned migration; do them manually.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       minor-and-patch:
         update-types: [minor, patch]
@@ -11,6 +15,10 @@ updates:
     directory: /mobile
     schedule: { interval: weekly }
     open-pull-requests-limit: 3
+    ignore:
+      # Major upgrades (Next 16, Prisma 7, Zod 4, Tailwind 4, …) need a planned migration; do them manually.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
