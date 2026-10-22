@@ -1,0 +1,52 @@
+name: DB copy (Prisma Postgres → Neon)
+# One-off, manually triggered. Connection strings come ONLY from repo secrets set by the owner; they are never echoed.
+#   SOURCE_DATABASE_URL  direct (non-pooled) postgres:// URL of the current Prisma Postgres database
+#   TARGET_DATABASE_URL  direct (unpooled) postgres:// URL of the Neon database
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "count = compare row counts only (safe); copy = REPLACE target with source"
+        type: choice
+        options: [count, copy]
+        default: count
+      confirm:
+        description: 'Type "COPY TO NEON" to allow mode=copy'
+        required: false
+permissions:
+  contents: read
+concurrency: { group: db-copy, cancel-in-progress: false }
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SRC: ${{ secrets.SOURCE_DATABASE_URL }}
+      DST: ${{ secrets.TARGET_DATABASE_URL }}
+    steps:
+      - name: Check inputs and secrets
+        run: |
+          [ -n "$SRC" ] && [ -n "$DST" ] || { echo "::error::Set SOURCE_DATABASE_URL and TARGET_DATABASE_URL repo secrets"; exit 1; }
+          [ "$SRC" != "$DST" ] || { echo "::error::source and target are the same"; exit 1; }
+          if [ "${{ inputs.mode }}" = "copy" ] && [ "${{ inputs.confirm }}" != "COPY TO NEON" ]; then echo "::error::confirmation text missing"; exit 1; fi
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+      - name: Dump source
+        if: inputs.mode == 'copy'
+        run: pg_dump "$SRC" --format=custom --no-owner --no-privileges --file=/tmp/src.dump && ls -la /tmp/src.dump | awk '{print "dump bytes:", $5}'
+      - name: Restore into target (replaces existing tables)
+        if: inputs.mode == 'copy'
+        run: pg_restore --dbname="$DST" --clean --if-exists --no-owner --no-privileges --single-transaction --exit-on-error /tmp/src.dump
+      - name: Compare row counts
+        run: |
+          q="select string_agg(format('%s=%s', t, (xpath('/row/c/text()', query_to_xml(format('select count(*) c from public.%I', t), false, true, '')))[1]::text), ' ' order by t) from (select tablename t from pg_tables where schemaname='public') x"
+          a=$(psql "$SRC" -Atc "$q"); b=$(psql "$DST" -Atc "$q")
+          echo "source: $a"; echo "target: $b"
+          if [ "${{ inputs.mode }}" = "copy" ] && [ "$a" != "$b" ]; then echo "::error::row counts differ"; exit 1; fi
+      - name: Remove dump
+        if: always()
+        run: rm -f /tmp/src.dump
