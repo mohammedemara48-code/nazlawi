@@ -1,0 +1,4 @@
+#!/bin/sh
+# Pushing to main deploys to production (Vercel). Run the full gate first: typecheck, lint, unit tests, browser smoke.
+# Enable once per clone:  git config core.hooksPath .githooks     (bypass in emergencies only: git push --no-verify)
+exec npm run -s predeploy

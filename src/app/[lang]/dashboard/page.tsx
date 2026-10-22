@@ -67,8 +67,18 @@ export default async function Dashboard({ params, searchParams }: Props) {
                 <p className="text-xs text-stone-500">{t.categories[store.category as Category][0]}{" "}<span className={`rounded-full px-2 py-0.5 ${badge[store.status]}`}>{t.status[store.status]}</span></p>
               </div>
             </div>
-            <Link href={href(lang, `/s/${store.slug}`)} className="btn-outline shrink-0 text-sm">{t.visitStore}</Link>
+            <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
+              <Link href={href(lang, `/s/${store.slug}`)} className="btn-outline text-sm">{t.visitStore}</Link>
+              <Link href={href(lang, "/dashboard?tab=info")} className="btn-outline text-sm" data-testid="edit-store-link">{t.editStore}</Link>
+            </div>
           </section>
+          {tab !== "info" && (!store.logoKey || !store.coverKey) && (
+            <Link href={href(lang, "/dashboard?tab=info")} className="card flex items-center gap-3 border-dashed p-3 text-sm text-stone-700 hover:border-[#C0532F]">
+              <span className="text-2xl" aria-hidden>🖼️</span>
+              <span className="flex-1">{lang === "en" ? "Add your store logo and cover photo so customers recognize you." : "ضيف شعار متجرك وصورة الغلاف علشان الزباين يعرفوك."}</span>
+              <span className="font-semibold text-[#C0532F]">{lang === "en" ? "Add" : "إضافة"} ←</span>
+            </Link>
+          )}
           {store.status !== "APPROVED" && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{t.storePending}</p>}
           <nav role="tablist" aria-label={lang === "en" ? "My store" : "متجري"} className="sticky top-0 z-30 -mx-4 flex gap-1 bg-[#FBF3EA]/95 px-4 py-2 backdrop-blur">
             {(["products", "sections", "info"] as const).map((k) => (

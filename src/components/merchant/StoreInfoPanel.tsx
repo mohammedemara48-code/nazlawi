@@ -13,22 +13,22 @@ export default function StoreInfoPanel({ lang, store }: { lang: Locale; store: S
   const img = "image/jpeg,image/png,image/webp";
   return (
     <div className="space-y-5">
-      <section className="card grid gap-6 p-5 sm:grid-cols-2">
+      <section id="store-media" className="card grid gap-6 p-5 sm:grid-cols-2" data-testid="store-media">
         <div>
           <h2 className="mb-2 font-bold">{t.logo}</h2>
-          <MediaUploader lang={lang} url={`/api/stores/${store.id}/images?kind=logo`} target={{ storeId: store.id }} accept={img} label={t.upload}
+          <MediaUploader lang={lang} url={`/api/stores/${store.id}/images?kind=logo`} testId="upload-logo" target={{ storeId: store.id }} accept={img} label={t.upload}
             current={store.logoKey ? <img src={`/api/uploads/${store.logoKey}`} alt="" className="h-24 w-24 rounded-xl object-cover" /> : null} />
         </div>
         <div>
           <h2 className="mb-2 font-bold">{t.cover}</h2>
-          <MediaUploader lang={lang} url={`/api/stores/${store.id}/images?kind=cover`} target={{ storeId: store.id }} accept={img} label={t.upload}
+          <MediaUploader lang={lang} url={`/api/stores/${store.id}/images?kind=cover`} testId="upload-cover" target={{ storeId: store.id }} accept={img} label={t.upload}
             current={store.coverKey ? <img src={`/api/uploads/${store.coverKey}`} alt="" className="h-24 w-full rounded-xl object-cover" /> : null} />
         </div>
         <div className="sm:col-span-2">
           <h2 className="font-bold">{t.video}</h2>
           <p className="mb-2 text-xs text-stone-500">{t.videoHint}</p>
           <AutoRefresh active={!!store.video && (store.video.processing === "QUEUED" || store.video.processing === "PROCESSING")} />
-          <MediaUploader lang={lang} url="/api/videos" fields={{ storeId: store.id }} accept="video/mp4,video/webm,video/quicktime" label={t.uploadVideo}
+          <MediaUploader lang={lang} url="/api/videos" testId="upload-video" fields={{ storeId: store.id }} accept="video/mp4,video/webm,video/quicktime" label={t.uploadVideo}
             deleteUrl={store.video ? `/api/videos/${store.video.id}` : undefined}
             current={store.video ? (
               <div><VideoView v={store.video} lang={lang} className="max-h-64" />

@@ -205,3 +205,21 @@ See `.env.example`: `DATABASE_URL`, `AUTH_SECRET`, `APP_URL` (used in email link
 - Admin role changes are not confirmed by a dialog; no bulk actions; audit log has no filters/export.
 - Images already cached by a browser/service worker may remain visible on that device after a listing is hidden.
 - Offline: no background sync; forms don't work offline.
+
+
+## Before every deploy (required)
+
+Pushing to `main` deploys production on Vercel, so every push must pass the gate:
+
+```bash
+git config core.hooksPath .githooks   # once per clone: runs the gate automatically on git push
+npm run predeploy                     # typecheck + lint + unit tests + browser smoke suite
+```
+
+`npm run smoke` (scripts/smoke.mjs) builds into `.next-smoke`, starts it, seeds `smoke-*` fixtures in the **local**
+database (it refuses remote databases), and checks in a 390px mobile browser:
+- merchant "بيانات المتجر" tab for an approved, a pending and an unverified store owner: logo, cover and video upload
+  controls, store form and map picker; edit-store link; products and sections tabs; `/dashboard/store` redirect
+- public store page (products + WhatsApp order link), pending store hidden, category page, home/en/login/signup/search,
+  upload-token route auth.
+Set `SMOKE_SCREENSHOTS=<dir>` to save screenshots. Fixtures are removed afterwards.

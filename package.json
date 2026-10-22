@@ -15,7 +15,9 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "worker": "tsx scripts/video-worker.ts"
+    "worker": "tsx scripts/video-worker.ts",
+    "smoke": "node --env-file=.env scripts/smoke.mjs",
+    "predeploy": "npm run typecheck && npm run lint && npm test && npm run smoke"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",

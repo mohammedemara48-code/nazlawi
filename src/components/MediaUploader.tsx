@@ -7,9 +7,9 @@ import { apiCall } from "./api-client";
 import { uploadTo } from "./upload-client";
 
 /** Uploads a store logo/cover or a promo video (listing or store) and refreshes the page. */
-export default function MediaUploader({ lang, url, fields, target, accept, label, busyLabel: _busyLabel, current, deleteUrl }: {
+export default function MediaUploader({ lang, url, fields, target, accept, label, busyLabel: _busyLabel, current, deleteUrl, testId }: {
   lang: Locale; url: string; fields?: Record<string, string>; target?: Record<string, string>; accept: string; label: string; busyLabel?: string;
-  current?: React.ReactNode; deleteUrl?: string;
+  current?: React.ReactNode; deleteUrl?: string; testId?: string;
 }) {
   const t = dict(lang);
   const router = useRouter();
@@ -31,7 +31,7 @@ export default function MediaUploader({ lang, url, fields, target, accept, label
     router.refresh();
   }
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-testid={testId}>
       {current}
       {note && <p role="status" className="rounded-xl bg-emerald-50 p-2 text-sm text-emerald-800">{note}</p>}
       {err && <p role="alert" className="rounded-xl bg-red-50 p-2 text-sm text-red-700">{err}</p>}

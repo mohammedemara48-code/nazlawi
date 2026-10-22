@@ -65,9 +65,11 @@ export default function ProductForm({ lang, storeId, product, sections, onSectio
       setBusy(t.uploading);
       const up = await uploadTo<{ image: { id: string; key: string } }>(`/api/listings/${saved.id}/images`, lang, file, { kind: "image", target: { listingId: saved.id } });
       if (!up.ok) { onSaved(saved); setBusy(null); setErr(`${t.photoFailed} ${up.error}`); return; }
-      // keep one photo per product: remove the previous ones
-      for (const old of saved.images) await apiCall(`/api/listings/${saved.id}/images/${old.id}`, lang, { method: "DELETE" });
-      saved = { ...saved, images: [up.data.image] };
+      // The new photo replaces the main photo only (extra photos from the product page are kept).
+      const main = saved.images[0];
+      if (main) await apiCall(`/api/listings/${saved.id}/images/${main.id}`, lang, { method: "DELETE" });
+      const fresh = await apiCall<{ product: MProduct }>(`/api/products/${saved.id}`, lang);
+      saved = fresh.ok ? fresh.data.product : { ...saved, images: [up.data.image] };
     }
     onSaved(saved);
     setBusy(null);
@@ -167,7 +169,12 @@ export default function ProductForm({ lang, storeId, product, sections, onSectio
             <span className="font-semibold">{t.inStock}</span>
             <input type="checkbox" className="h-5 w-5 accent-emerald-600" checked={f.inStock} onChange={(e) => set("inStock", e.target.checked)} />
           </label>
-          {product && <button type="button" onClick={remove} className="text-sm text-red-700 underline">{t.del}</button>}
+          {product && (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <a href={`${lang === "en" ? "/en" : ""}/dashboard/edit/${product.id}`} className="text-sm font-semibold text-[#C0532F] underline">{lang === "en" ? "More photos (up to 4) & product video" : "صور إضافية (حتى ٤) وفيديو المنتج"}</a>
+              <button type="button" onClick={remove} className="text-sm text-red-700 underline">{t.del}</button>
+            </div>
+          )}
         </div>
         <footer className="grid grid-cols-2 gap-2 border-t border-stone-100 bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {!product && <button type="button" disabled={!!busy} onClick={() => save(true)} className="btn-outline text-sm">{t.saveAnother}</button>}
