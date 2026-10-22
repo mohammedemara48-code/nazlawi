@@ -9,9 +9,9 @@ next-env.d.ts
 .DS_Store
 test-results/
 test.db*
-uploads/
+/uploads/
 .outbox/
-test-uploads/
+/test-uploads/
 .env.*
 !.env.example
 .vercel/

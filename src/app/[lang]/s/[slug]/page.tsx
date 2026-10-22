@@ -27,6 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!d) return { title: dict(asLocale(lang)).notFound };
   return { title: lang === "en" ? d.store.nameEn : d.store.nameAr, description: lang === "en" ? d.store.bioEn : d.store.bioAr };
 }
+import StoreMap from "@/components/StoreMap";
 
 export default async function StorePage({ params, searchParams }: Props) {
   const { lang: l, slug } = await params;
@@ -65,6 +66,9 @@ export default async function StorePage({ params, searchParams }: Props) {
           </div>
         </div>
       </header>
+      {store.latitude != null && store.longitude != null && (
+        <StoreMap lang={lang} lat={store.latitude} lng={store.longitude} landmark={[address, store.area].filter(Boolean).join(" · ") || undefined} />
+      )}
       {video && (
         <section className="card overflow-hidden">
           <VideoView v={video} lang={lang} />

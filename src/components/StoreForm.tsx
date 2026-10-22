@@ -5,6 +5,7 @@ import { CATEGORIES, MEDICAL_SUBS, type Locale } from "@/lib/constants";
 import { dict, href } from "@/lib/i18n";
 import { apiCall } from "./api-client";
 import CategoryIcon from "./CategoryIcon";
+import MapPicker from "./MapPicker";
 
 type S = Omit<Store, "searchText">;
 type TextField = "nameAr" | "nameEn" | "bioAr" | "bioEn" | "phone" | "whatsapp" | "addressAr" | "addressEn" | "area";
@@ -17,13 +18,14 @@ export default function StoreForm({ lang, initial }: { lang: Locale; initial?: S
   const [err, setErr] = useState<string | null>(null);
   const [fields, setFields] = useState<{ field: string; message: string }[]>([]);
   const [busy, setBusy] = useState(false);
+  const [pin, setPin] = useState<{ lat: number; lng: number } | null>(initial?.latitude != null && initial?.longitude != null ? { lat: initial.latitude, lng: initial.longitude } : null);
   const fe = (f: string) => fields.find((x) => x.field === f)?.message;
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true); setErr(null); setFields([]);
     const fd = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
-    const body = { ...fd, category: category || undefined, subcategory: category === "medical" ? sub || undefined : null };
+    const body = { ...fd, category: category || undefined, subcategory: category === "medical" ? sub || undefined : null, latitude: pin?.lat ?? null, longitude: pin?.lng ?? null };
     const r = await apiCall(initial ? `/api/stores/${initial.id}` : "/api/stores", lang, { method: initial ? "PATCH" : "POST", body });
     setBusy(false);
     if (!r.ok) { setErr(r.error); setFields(r.details); return; }
@@ -75,6 +77,7 @@ export default function StoreForm({ lang, initial }: { lang: Locale; initial?: S
         {F({ name: "addressAr", label: t.addressAr })}
         {F({ name: "addressEn", label: t.addressEn, ltr: true })}
         {F({ name: "area", label: t.area })}
+        <MapPicker lang={lang} value={pin} onChange={setPin} error={fe("latitude") ?? fe("longitude")} />
       </div>
       <p className="text-xs text-stone-500">{t.storeReviewNote}</p>
       <button disabled={busy} className="btn-primary">{initial ? t.save : t.createStore}</button>

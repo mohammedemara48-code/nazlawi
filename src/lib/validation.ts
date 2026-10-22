@@ -49,9 +49,13 @@ const storeBase = z.object({
   addressAr: text(200).default(""),
   addressEn: text(200).default(""),
   area: text(80).default(""),
+  latitude: z.coerce.number().min(-90, m("خط العرض غير صحيح", "Invalid latitude")).max(90, m("خط العرض غير صحيح", "Invalid latitude")).nullish(),
+  longitude: z.coerce.number().min(-180, m("خط الطول غير صحيح", "Invalid longitude")).max(180, m("خط الطول غير صحيح", "Invalid longitude")).nullish(),
 });
-export const storeCreateSchema = storeBase.refine(medicalRule, medicalMsg);
-export const storeUpdateSchema = storeBase.partial().refine(medicalRule, medicalMsg);
+const coordsRule = (v: { latitude?: number | null; longitude?: number | null }) => (v.latitude == null) === (v.longitude == null);
+const coordsMsg = { message: m("حدد الموقع على الخريطة كاملاً", "Set both latitude and longitude"), path: ["latitude"] };
+export const storeCreateSchema = storeBase.refine(medicalRule, medicalMsg).refine(coordsRule, coordsMsg);
+export const storeUpdateSchema = storeBase.partial().refine(medicalRule, medicalMsg).refine(coordsRule, coordsMsg);
 
 /** Listing = an ad/offer inside a store. Category comes from the store. */
 const listingBase = z.object({

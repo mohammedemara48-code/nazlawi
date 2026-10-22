@@ -36,6 +36,10 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Camera capture from <input type="file" capture> (photos/videos for listings). Runtime-requested. -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Store location picker (navigator.geolocation in the WebView). -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- Push notifications (Android 13+ runtime permission; requested only when push is enabled). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

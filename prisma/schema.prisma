@@ -52,6 +52,8 @@ model Store {
   addressAr   String   @default("")
   addressEn   String   @default("")
   area        String   @default("")
+  latitude    Float?
+  longitude   Float?
   logoKey     String?
   coverKey    String?
   status      String   @default("PENDING") // PENDING | APPROVED | HIDDEN

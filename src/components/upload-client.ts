@@ -30,6 +30,20 @@ export async function uploadTo<T = Record<string, unknown>>(url: string, lang: s
     });
     return apiCall<T>(url, lang, { body: { sourceKey: blob.pathname, ...(opts.fields ?? {}) } });
   } catch (e) {
-    return { ok: false as const, data: null, error: e instanceof Error ? e.message : "Upload failed", details: [] as { field: string; message: string }[] };
+    if (typeof console !== "undefined") console.warn("upload failed", e);
+    return { ok: false as const, data: null, error: friendlyUploadError(e, lang, opts.kind), details: [] as { field: string; message: string }[] };
   }
+}
+
+/** Maps raw Vercel Blob SDK / network errors to a short bilingual-aware message (never raw SDK text). */
+export function friendlyUploadError(e: unknown, lang: string, kind: UploadKind) {
+  const en = lang === "en";
+  const raw = (e instanceof Error ? e.message : String(e ?? "")).toLowerCase();
+  const name = e instanceof Error ? e.name : "";
+  if (/content type|contenttype|not allowed/.test(raw) && !/token/.test(raw))
+    return kind === "video" ? (en ? "Unsupported video type (MP4, WebM or MOV only)" : "نوع الفيديو غير مدعوم (MP4 أو WebM أو MOV فقط)") : (en ? "Unsupported image type (JPG, PNG or WebP only)" : "نوع الصورة غير مدعوم (JPG أو PNG أو WebP فقط)");
+  if (/too large|maximum size|file size|413/.test(raw)) return en ? "The file is too large" : "حجم الملف كبير جداً";
+  if (/client token|unauthor|forbidden/.test(raw)) return en ? "Couldn't authorize the upload. Sign in again and retry." : "تعذر تجهيز الرفع. سجّل الدخول مرة أخرى وحاول تاني.";
+  if (/network|fetch|offline|timeout|abort/.test(raw) || name === "TypeError") return en ? "Network problem while uploading. Check your connection and try again." : "مشكلة في الاتصال أثناء الرفع. اتأكد من النت وحاول تاني.";
+  return en ? "Upload failed. Please try again." : "فشل رفع الملف. حاول مرة أخرى.";
 }
