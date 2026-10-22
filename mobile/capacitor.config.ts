@@ -11,7 +11,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  *
  * Read at `cap sync` time and baked into android/app/src/main/assets/capacitor.config.json.
  */
-const PROD_URL = "https://nazlawi.example.com"; // TODO: replace with the real production domain
+const PROD_URL = "https://nazlawi-bwfg-waslapp.vercel.app";
 const dev = process.env.CAP_MODE === "dev";
 const serverUrl = (process.env.CAP_SERVER_URL || (dev ? "http://10.0.2.2:3100" : PROD_URL)).replace(/\/$/, "");
 const host = new URL(serverUrl).hostname;

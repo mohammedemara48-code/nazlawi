@@ -21,7 +21,7 @@ The web app needs no Capacitor packages: Capacitor injects `window.Capacitor` in
 ## الخصائص / Features
 | Feature | How |
 |---|---|
-| Server URL | `CAP_SERVER_URL` at `cap sync` time; default `https://nazlawi.example.com` (placeholder — change `PROD_URL` in `capacitor.config.ts` once the domain exists) |
+| Server URL | `CAP_SERVER_URL` at `cap sync` time; default `https://nazlawi-bwfg-waslapp.vercel.app` (`PROD_URL` in `capacitor.config.ts`) |
 | Dev mode | `CAP_MODE=dev` → `http://10.0.2.2:3100` (the host machine from the Android emulator), cleartext + WebView debugging enabled |
 | Icon | adaptive icon (orange background + cream pin/house), round + monochrome (themed icons), legacy PNGs |
 | Splash | Android 12+ splash API (cream + logo) and Capacitor splash (light/dark) |
