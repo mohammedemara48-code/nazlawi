@@ -24,6 +24,12 @@ jobs:
       SRC: ${{ secrets.SOURCE_DATABASE_URL }}
       DST: ${{ secrets.TARGET_DATABASE_URL }}
     steps:
+      - name: Normalize connection strings (strip quotes / NAME= prefix pasted from .env)
+        run: |
+          clean() { v="$(printf '%s' "$1" | tr -d '\r\n' | sed -E 's/^[[:space:]]*(export[[:space:]]+)?[A-Z_]+=//; s/^[[:space:]]*["'"'"']?//; s/["'"'"']?[[:space:]]*$//')"; printf '%s' "$v"; }
+          s="$(clean "$SRC")"; d="$(clean "$DST")"
+          echo "::add-mask::$s"; echo "::add-mask::$d"
+          { echo "SRC=$s"; echo "DST=$d"; } >> "$GITHUB_ENV"
       - name: Check inputs and secrets
         run: |
           [ -n "$SRC" ] && [ -n "$DST" ] || { echo "::error::Set SOURCE_DATABASE_URL and TARGET_DATABASE_URL repo secrets"; exit 1; }

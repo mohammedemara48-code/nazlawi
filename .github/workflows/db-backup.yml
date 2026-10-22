@@ -18,6 +18,10 @@ jobs:
       DB: ${{ secrets.BACKUP_DATABASE_URL || secrets.SOURCE_DATABASE_URL }}
       PASS: ${{ secrets.BACKUP_PASSPHRASE }}
     steps:
+      - name: Normalize connection strings (strip quotes / NAME= prefix pasted from .env)
+        run: |
+          clean() { v="$(printf '%s' "$1" | tr -d '\r\n' | sed -E 's/^[[:space:]]*(export[[:space:]]+)?[A-Z_]+=//; s/^[[:space:]]*["'"'"']?//; s/["'"'"']?[[:space:]]*$//')"; printf '%s' "$v"; }
+          v="$(clean "$DB")"; echo "::add-mask::$v"; echo "DB=$v" >> "$GITHUB_ENV"
       - name: Check secrets
         run: |
           if [ -z "$DB" ] || [ -z "$PASS" ]; then echo "::warning::BACKUP_DATABASE_URL (or SOURCE_DATABASE_URL) / BACKUP_PASSPHRASE not set; skipping"; echo "SKIP=1" >> "$GITHUB_ENV"; fi
