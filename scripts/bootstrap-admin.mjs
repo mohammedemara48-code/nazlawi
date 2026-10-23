@@ -8,6 +8,26 @@ import { PrismaClient } from "@prisma/client";
 const email = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase();
 const b64 = process.env.BOOTSTRAP_ADMIN_PASSWORD_HASH_B64;
 const reset = process.env.BOOTSTRAP_ADMIN_RESET === "1";
+const renameFrom = process.env.BOOTSTRAP_ADMIN_EMAIL_FROM?.trim().toLowerCase();
+// Email-change mode (BOOTSTRAP_ADMIN_EMAIL_FROM=old, BOOTSTRAP_ADMIN_EMAIL=new): renames an existing ADMIN's email,
+// keeps the password, writes an audit entry. Refuses if the new email is taken. Idempotent.
+if (email && renameFrom && renameFrom !== email) {
+  const db = new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
+  try {
+    const [from, taken] = await Promise.all([db.user.findUnique({ where: { email: renameFrom } }), db.user.findUnique({ where: { email } })]);
+    if (taken) console.log(taken.role === "ADMIN" && !from ? "[bootstrap-admin] admin email already changed; no changes" : "[bootstrap-admin] email change refused: new email already in use");
+    else if (!from || from.role !== "ADMIN") console.error("[bootstrap-admin] email change refused: old email is not an admin");
+    else {
+      await db.$transaction([
+        db.user.update({ where: { id: from.id }, data: { email, emailVerified: new Date() } }),
+        db.authToken.deleteMany({ where: { userId: from.id, type: "CHANGE_EMAIL" } }),
+        db.auditLog.create({ data: { actorId: from.id, actorEmail: email, action: "ADMIN_EMAIL_CHANGED", targetType: "USER", targetId: from.id, meta: JSON.stringify({ from: renameFrom, to: email, via: "build-bootstrap" }) } }),
+      ]);
+      console.log("[bootstrap-admin] admin email changed");
+    }
+  } finally { await db.$disconnect(); }
+  process.exit(0);
+}
 if (!email || !b64) process.exit(0);
 const hash = Buffer.from(b64, "base64").toString("utf8");
 if (!/^\$2[aby]\$\d{2}\$/.test(hash)) { console.error("[bootstrap-admin] invalid hash; skipping"); process.exit(0); }

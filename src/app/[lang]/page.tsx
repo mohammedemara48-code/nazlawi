@@ -20,7 +20,7 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
         <p className="mt-4 text-stone-700">{t.heroSub}</p>
       </section>
       <div className="mx-auto mt-6 max-w-3xl"><SearchBar lang={lang} /></div>
-      <div className="mt-5"><PromoStrip items={promos} lang={lang} /></div>
+      <div className="mt-5" data-testid="home-promos"><PromoStrip items={promos} lang={lang} /></div>
       <section className="mx-auto mt-6 grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-3">
         {CATEGORIES.map((c) => (
           <Link key={c} href={href(lang, `/c/${c}`)} className="card p-5 transition hover:-translate-y-0.5 hover:shadow-md">

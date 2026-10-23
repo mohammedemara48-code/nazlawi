@@ -41,7 +41,7 @@ export default function PromotionPanel({ lang, storeId, listings, promos }: { la
               <span>{p.targetType === "LISTING" && p.listing ? (lang === "en" ? p.listing.nameEn : p.listing.nameAr) : `🏪 ${lang === "en" ? p.store.nameEn : p.store.nameAr}`} · {fmt(p.startsAt)} → {fmt(p.endsAt)}</span>
               <span className="flex items-center gap-2">
                 <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs">{t.promoStatus[p.status]}</span>
-                {p.status === "PENDING" && <button className="text-xs text-red-600" onClick={async () => { await apiCall(`/api/promotions/${p.id}`, lang, { method: "DELETE" }); router.refresh(); }}>{t.cancel}</button>}
+                {(p.status === "PENDING" || p.status === "APPROVED") && <button className="text-xs text-red-600" onClick={async () => { await apiCall(`/api/promotions/${p.id}`, lang, { method: "DELETE" }); router.refresh(); }}>{t.cancel}</button>}
               </span>
             </li>
           ))}

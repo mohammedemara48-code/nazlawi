@@ -8,7 +8,7 @@ import { LISTING_PUBLIC, STORE_PUBLIC } from "./visibility";
 
 const DAY = 86_400_000;
 export const MAX_PROMO_DAYS = 30;
-export const MAX_PENDING_PER_USER = 3;
+export const MAX_PENDING_PER_USER = 3 // max live (pending/active) promotions per merchant;
 
 /** Marks APPROVED promotions whose end date passed as EXPIRED. Cheap; called on reads (and could run from cron). */
 export async function expirePromotions(now = new Date()) {
@@ -41,15 +41,15 @@ export async function requestPromotion(
     if (s.role !== "ADMIN" && st.ownerId !== s.sub) throw new ApiError("FORBIDDEN");
     storeId = input.storeId!;
   }
-  if (s.role !== "ADMIN" && (await prisma.promotion.count({ where: { requestedById: s.sub, status: "PENDING" } })) >= MAX_PENDING_PER_USER) throw new ApiError("PROMOTION_LIMIT");
+  if (s.role !== "ADMIN" && (await prisma.promotion.count({ where: { requestedById: s.sub, status: { in: ["PENDING", "APPROVED"] }, endsAt: { gt: new Date() } } })) >= MAX_PENDING_PER_USER) throw new ApiError("PROMOTION_LIMIT");
   const store = await prisma.store.findUniqueOrThrow({ where: { id: storeId }, select: { category: true } });
   const promo = await prisma.promotion.create({
     data: {
       targetType: input.targetType, listingId, storeId, category: store.category, startsAt: input.startsAt, endsAt: input.endsAt,
-      note: input.note, requestedById: s.sub, status: s.role === "ADMIN" ? "APPROVED" : "PENDING", priority: opts.priority ?? 0, isExample: !!opts.isExample,
+      note: input.note, requestedById: s.sub, status: "APPROVED", /* merchant content publishes immediately (no admin approval); admins can still reject/expire it */ priority: opts.priority ?? 0, isExample: !!opts.isExample,
     },
   });
-  if (s.role === "ADMIN") await audit(s, "PROMOTION_CREATED", "PROMOTION", promo.id, { targetType: promo.targetType, storeId });
+  await audit(s, "PROMOTION_CREATED", "PROMOTION", promo.id, { targetType: promo.targetType, storeId });
   return promo;
 }
 
@@ -59,7 +59,7 @@ const STRIP_INCLUDE = {
 } satisfies Prisma.PromotionInclude;
 
 /** Active strip: APPROVED, within dates, target public; ordered by priority. */
-export async function activePromotions(opts: { category?: string; limit?: number } = {}, now = new Date()) {
+export async function activePromotions(opts: { category?: string; storeId?: string; limit?: number } = {}, now = new Date()) {
   await expirePromotions(now);
   const rows = await prisma.promotion.findMany({
     where: {
@@ -67,6 +67,7 @@ export async function activePromotions(opts: { category?: string; limit?: number
       startsAt: { lte: now },
       endsAt: { gt: now },
       ...(opts.category ? { category: opts.category } : {}),
+      ...(opts.storeId ? { storeId: opts.storeId } : {}),
       store: { is: STORE_PUBLIC },
       OR: [{ targetType: "STORE" }, { targetType: "LISTING", listing: { is: LISTING_PUBLIC } }],
     },
@@ -99,7 +100,7 @@ export async function cancelPromotion(id: string, s: Session) {
   const p = await prisma.promotion.findUnique({ where: { id } });
   if (!p) throw new ApiError("NOT_FOUND");
   if (s.role !== "ADMIN" && p.requestedById !== s.sub) throw new ApiError("FORBIDDEN");
-  if (s.role !== "ADMIN" && p.status !== "PENDING") throw new ApiError("FORBIDDEN");
+  if (s.role !== "ADMIN" && !["PENDING", "APPROVED"].includes(p.status)) throw new ApiError("FORBIDDEN");
   await prisma.promotion.delete({ where: { id } });
 }
 

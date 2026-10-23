@@ -14,6 +14,8 @@ import { cairoMinutes, isOpenAt, waOrderLink } from "@/lib/store-hours";
 import { toEgE164 } from "@/lib/validation";
 import { mediaUrl } from "@/lib/services/media";
 import { abs, jsonLd } from "@/lib/site";
+import PromoStrip from "@/components/PromoStrip";
+import { activePromotions } from "@/lib/services/promotions";
 
 type Props = { params: Promise<{ lang: string; slug: string }> };
 export const dynamic = "force-dynamic";
@@ -46,6 +48,7 @@ export default async function StorePage({ params }: Props) {
   const d = await load(slug);
   if (!d) notFound();
   const { store, video, sections, products } = d;
+  const promos = d.public ? await activePromotions({ storeId: store.id, limit: 10 }) : [];
   const name = en ? store.nameEn : store.nameAr;
   const bio = en ? store.bioEn : store.bioAr;
   const address = en ? store.addressEn : store.addressAr;
@@ -102,6 +105,7 @@ export default async function StorePage({ params }: Props) {
           {video.status !== "APPROVED" && <p className="p-2 text-xs text-amber-800">{t.video}: {t.videoStatus[video.status]}</p>}
         </section>
       )}
+      {promos.length > 0 && <div data-testid="store-promos"><PromoStrip items={promos} lang={lang} /></div>}
       <StoreCatalog lang={lang} sections={sections} products={products} whatsapp={wa} storeName={store.nameAr} />
       {hasPin && <StoreMap lang={lang} lat={store.latitude!} lng={store.longitude!} landmark={[address, store.area].filter(Boolean).join(" · ") || undefined} />}
     </div>

@@ -276,9 +276,9 @@ describe("promotions", () => {
     const body = { targetType: "LISTING", listingId: l, startsAt: new Date(now).toISOString(), endsAt: new Date(now + 3 * DAY).toISOString() };
     const r = await json(await requestPromo(req("/api/promotions", { method: "POST", body, cookie: c }), {}));
     expect(r.status).toBe(201);
-    expect(r.body.promotion.status).toBe("PENDING");
+    expect(r.body.promotion.status).toBe("APPROVED"); // published immediately, no admin approval
     const strip = async () => (await json(await activePromos(req("/api/promotions"), {}))).body.items;
-    expect(await strip()).toHaveLength(0);
+    expect(await strip()).toHaveLength(1);
 
     const s2 = await json(await requestPromo(req("/api/promotions", { method: "POST", body: { targetType: "STORE", storeId: store.id, startsAt: body.startsAt, endsAt: body.endsAt }, cookie: c }), {}));
     const admin = await adminCookie();
@@ -308,8 +308,8 @@ describe("promotions", () => {
     const first = (await json(await mk())).body.promotion.id;
     await mk(); await mk();
     expect((await json(await mk())).body.error.code).toBe("PROMOTION_LIMIT");
-    await prisma.promotion.update({ where: { id: first }, data: { status: "APPROVED" } });
-    expect((await json(await activePromos(req("/api/promotions"), {}))).body.items).toHaveLength(1);
+    expect((await prisma.promotion.findUniqueOrThrow({ where: { id: first } })).status).toBe("APPROVED");
+    expect((await json(await activePromos(req("/api/promotions"), {}))).body.items).toHaveLength(3);
     await prisma.listing.update({ where: { id: l }, data: { status: "HIDDEN" } });
     expect((await json(await activePromos(req("/api/promotions"), {}))).body.items).toHaveLength(0);
   });

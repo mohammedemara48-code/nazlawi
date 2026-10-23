@@ -245,6 +245,24 @@ async function main() {
 
     // ---- map location everywhere ----
     const prov = await newPage("smoke-approved@nazlawi.test");
+    await check("promotion: merchant posts from promote tab → visible immediately on home (ar+en) and store page", async () => {
+      await prov.goto(BASE + "/dashboard?tab=promote", { waitUntil: "networkidle" });
+      const tab = prov.getByTestId("promote-tab");
+      await tab.locator('select[name="target"]').selectOption("store");
+      const resp = prov.waitForResponse((r) => r.url().includes("/api/promotions") && r.request().method() === "POST");
+      await tab.locator("button.btn-primary").click();
+      const r = await resp;
+      assert(r.status() === 201, `create status ${r.status()}`);
+      assert((await r.json()).promotion.status === "APPROVED", "promotion not published immediately");
+      const viewer = await newPage();
+      for (const path of ["/", "/en"]) {
+        await viewer.goto(BASE + path, { waitUntil: "networkidle" });
+        assert((await viewer.getByTestId("home-promos").locator('a[href*="/s/smoke-approved"]').count()) > 0, `promo missing on home ${path}`);
+      }
+      await viewer.goto(BASE + "/s/smoke-approved", { waitUntil: "networkidle" });
+      assert(await viewer.getByTestId("store-promos").isVisible(), "promo missing on store page");
+      await viewer.context().close();
+    });
     await check("map: resident/profile address picker in settings", async () => {
       await prov.goto(BASE + "/settings", { waitUntil: "networkidle" });
       assert(await prov.getByTestId("addr-field").isVisible(), "address map missing");

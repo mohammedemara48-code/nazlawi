@@ -117,3 +117,8 @@ The previous Prisma Postgres database (`DATABASE_URL`, `POSTGRES_URL`) is kept u
   Writes made on Neon after the cutover are not in Prisma Postgres; copy them back first (`db-copy` with swapped secrets) if needed.
 - Preview deployments get their own Neon branch (`preview/<git-branch>`) from the integration.
 - Nightly backups (`db-backup.yml`) read `TARGET_DATABASE_URL` (Neon) unless `BACKUP_DATABASE_URL` is set.
+
+### Changing the admin email
+Set `BOOTSTRAP_ADMIN_EMAIL_FROM=<old>` and `BOOTSTRAP_ADMIN_EMAIL=<new>` (Production) and redeploy. The build renames the
+existing ADMIN account (password unchanged, audit entry `ADMIN_EMAIL_CHANGED`) and refuses if the new email is taken.
+Delete both vars afterwards. Contact email shown on the site: getgerok@gmail.com.
