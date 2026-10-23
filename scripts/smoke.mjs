@@ -236,9 +236,18 @@ async function main() {
       assert(!(await sr.text()).includes(extra.id), "deleted product in search API");
       assert((await prisma.listing.count({ where: { id: extra.id } })) === 0, "product row still in DB (not hard-deleted)");
     });
-    await check("service worker v6 does not cache API responses", async () => {
-      const sw = await (await anon.request.get(BASE + "/sw.js")).text();
-      assert(sw.includes('"v6"'), "sw version not bumped");
+    await check("service worker: per-build version, no-cache headers, update flow; does not cache API responses", async () => {
+      const r = await anon.request.get(BASE + "/sw.js");
+      assert(r.ok() && /javascript/.test(r.headers()["content-type"]), "sw.js not served as JS");
+      assert(/no-cache/.test(r.headers()["cache-control"] || ""), "sw.js is HTTP-cacheable");
+      const sw = await r.text();
+      assert(/const VERSION = "v7-[^_"]+"/.test(sw), "sw version not stamped per build");
+      assert(sw.includes("skipWaiting") && sw.includes("clients.claim"), "sw update flow missing");
+      assert(!/caches\.match\(req\)\.then\(\(hit\) => hit \|\| fetch\(req\)\.then[\s\S]{0,40}navigate/.test(sw), "navigations cache-first");
+      await anon.goto(BASE + "/", { waitUntil: "networkidle" });
+      const reg = await anon.evaluate(async () => { const r = await navigator.serviceWorker.ready; return !!r.active; });
+      assert(reg, "service worker did not activate (PWA/offline broken)");
+      assert((await anon.request.get(BASE + "/offline.html")).ok(), "offline page missing");
       assert(!/api\\\/\(listings/.test(sw), "sw still caches /api/listings");
     });
     await adm.context().close();

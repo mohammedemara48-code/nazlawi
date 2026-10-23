@@ -1,5 +1,5 @@
 // Nazlawi service worker: app shell + recently viewed pages/listings + offline fallback.
-const VERSION = "v6";
+const VERSION = "v7-__BUILD__"; // per-deploy: byte-changed sw.js → browser installs it → old caches purged
 const SHELL = `nz-shell-${VERSION}`;
 const PAGES = `nz-pages-${VERSION}`;
 const ASSETS = `nz-assets-${VERSION}`;
@@ -68,3 +68,5 @@ self.addEventListener("fetch", (e) => {
     );
   }
 });
+
+self.addEventListener("message", (e) => { if (e.data === "SKIP_WAITING") self.skipWaiting(); });
