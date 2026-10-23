@@ -5,6 +5,10 @@ Web and Android share the version number (Android `versionName` / `versionCode` 
 
 ## [Unreleased]
 ### Added
+- New provider sections: **Crafts / مهن** (electrician, plumber, carpenter, plastering, gypsum, or a custom craft name), **Productive families / أسرة منتجة**, **Event preparation / تجهيز مناسبات** — same store features as the other sections; trade filter tabs and searchable trade names.
+- **Event invitations / دعوات المناسبات** timeline (`/invitations`): residents post one image (JPG/PNG/WebP ≤5 MB, re-encoded to WebP) + caption (≤500 chars); any signed-in user can like and comment; report button on posts and comments; authors delete their own content; admins delete anything **permanently** (rows + image) from the timeline or the new **Admin → Reports** page. Posting is rate-limited (2/min, 5/day), comments 10/min.
+- **Profile page** (`/profile`) with profile photo upload, and a public user page (`/u/:id`); photo + name shown on posts and comments.
+- Database migration `20261023150000_crafts_invitations` (additive only: `Store.craftName`, `User.avatarKey`, `Post`, `PostComment`, `PostLike`, `PostReport`).
 - Privacy policy and Terms of use pages (ar/en), linked in the footer.
 - SEO: Open Graph metadata, dynamic `sitemap.xml` / `robots.txt`, JSON-LD for stores (LocalBusiness) and products (Product + price).
 - Security headers (CSP, HSTS, nosniff, Referrer-Policy, Permissions-Policy, frame-ancestors).

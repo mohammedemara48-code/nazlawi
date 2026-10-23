@@ -16,5 +16,10 @@ export async function mediaAccess(key: string): Promise<{ public: boolean; owner
     const parentPublic = v.listing ? isListingPublic(v.listing) : v.store ? isStorePublic(v.store) : false;
     return { public: v.status === "APPROVED" && v.processing === "READY" && parentPublic, ownerId: v.ownerId };
   }
+  // Invitations timeline images and profile photos: public while the author's account is active.
+  const post = await prisma.post.findUnique({ where: { imageKey: key }, select: { authorId: true, author: OWNER_STATUS } });
+  if (post) return { public: post.author.status === "ACTIVE", ownerId: post.authorId };
+  const u = await prisma.user.findFirst({ where: { avatarKey: key }, select: { id: true, status: true } });
+  if (u) return { public: u.status === "ACTIVE", ownerId: u.id };
   return null;
 }

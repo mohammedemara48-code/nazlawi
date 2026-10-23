@@ -15,7 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const alternates = { languages: { ar, en } };
     return [{ url: ar, lastModified, priority, alternates }, { url: en, lastModified, priority, alternates }];
   };
-  const statics = ["/", "/about", "/contact", "/privacy", "/terms", ...CATEGORIES.map((c) => `/c/${c}`)].flatMap((p) => both(p, undefined, p === "/" ? 1 : 0.6));
+  const statics = ["/", "/about", "/contact", "/privacy", "/terms", "/invitations", ...CATEGORIES.map((c) => `/c/${c}`)].flatMap((p) => both(p, undefined, p === "/" ? 1 : 0.6));
   try {
     const [stores, products] = await Promise.all([
       prisma.store.findMany({ where: STORE_PUBLIC, select: { slug: true, updatedAt: true }, take: 5000 }),

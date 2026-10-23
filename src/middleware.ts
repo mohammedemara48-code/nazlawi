@@ -12,7 +12,7 @@ export async function middleware(req: NextRequest) {
   const rest = isEn ? pathname.slice(3) || "/" : pathname;
 
   // Protected areas: redirect to sign-in if there is no valid session.
-  if (rest.startsWith("/dashboard") || rest.startsWith("/admin") || rest.startsWith("/settings") || rest.startsWith("/onboarding")) {
+  if (rest.startsWith("/dashboard") || rest.startsWith("/admin") || rest.startsWith("/settings") || rest.startsWith("/profile") || rest.startsWith("/onboarding")) {
     const token = req.cookies.get(SESSION_COOKIE)?.value;
     let ok = false;
     if (token) {

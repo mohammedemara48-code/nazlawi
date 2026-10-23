@@ -17,10 +17,13 @@
 
 ## العربية
 
-**نزلاوي** سوق خدمات للقرية: بقالة، ملابس، مواد بناء، مشاوير، نقل، ودليل طبي (دكاترة، صيدليات، معامل) — بالعربي والإنجليزي، على الويب وتطبيق أندرويد.
+**نزلاوي** سوق خدمات للقرية: بقالة، ملابس، مواد بناء، مشاوير، نقل، دليل طبي (دكاترة، صيدليات، معامل)، مهن (كهربائي، سباك، نجار، محارة، جبس، وأي مهنة)، أسرة منتجة، وتجهيز مناسبات، مع تايم لاين لدعوات المناسبات — بالعربي والإنجليزي، على الويب وتطبيق أندرويد.
 
 ### المميزات
 - 🏪 **متجر لكل تاجر**: أقسام ومنتجات بصورة وسعر ووحدة، عروض وسعر قبل الخصم، منتجات مميزة، ترتيب بالسحب، وطلب مباشر على واتساب.
+- 🛠️ **أقسام جديدة**: مهن (كهربائي، سباك، نجار، محارة، جبس، أو اسم مهنة يكتبه مقدم الخدمة)، أسرة منتجة، وتجهيز مناسبات — بنفس تفاصيل المتجر (صورة، غلاف، خريطة، واتساب، أقسام ومنتجات وأسعار، ترويج).
+- 💌 **دعوات المناسبات**: تايم لاين يقدر فيه الأهالي ينشروا صورة دعوة مع كلام، وأهل القرية يعجبوا ويعلّقوا، مع إبلاغ عن المحتوى وحذف نهائي من الإدارة.
+- 👤 **صفحة شخصية** لكل مستخدم بصورته، تظهر جنب منشوراته وتعليقاته.
 - 🔥 **تبويب الترويج**: التاجر يطلب ترويج لمتجره أو لمنتج لمدة محددة، والإدارة توافق، فيظهر في شريط "عروض مميزة".
 - 🗺️ **الموقع بالخريطة** في كل مكان (المتجر، المنتج، العنوان) مع تحديد تلقائي بالـ GPS واتجاهات Google Maps.
 - 🖼️ رفع صور وفيديو مباشر (Vercel Blob) مع ضغط الصور على الجهاز.
@@ -34,6 +37,9 @@
 
 ### Features
 - 🏪 **Merchant stores**: sections and priced products (photo, price, unit, old price, stock, featured, drag-reorder) published instantly, with one-tap WhatsApp ordering.
+- 🛠️ **New sections**: Crafts (electrician, plumber, carpenter, plastering, gypsum, or a custom craft name), Productive families and Event preparation — with the same store details (photo, cover, map, WhatsApp, sections/products/prices, promotions).
+- 💌 **Event invitations** timeline: residents post an image + caption; villagers like and comment; report button, owner delete, and permanent admin delete.
+- 👤 **User profile page** with a profile photo shown on posts and comments.
 - 🔥 **Promote tab**: merchants request time-boxed promotions for their store or a product; admins approve them into the "Featured offers" strip.
 - 🗺️ **Map-based locations** everywhere (Leaflet + OpenStreetMap), GPS auto-centering, Google Maps directions.
 - 🖼️ Direct photo/video uploads to Vercel Blob with client-side compression.

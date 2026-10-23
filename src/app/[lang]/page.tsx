@@ -30,6 +30,13 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
             <p className="mt-2 text-xs text-stone-400">{counts[c] ?? 0} {t.stores}</p>
           </Link>
         ))}
+        <Link href={href(lang, "/invitations")} data-testid="home-invitations" className="card col-span-2 flex items-center gap-4 bg-gradient-to-l from-[#F2D49B]/60 to-white p-5 transition hover:-translate-y-0.5 hover:shadow-md sm:col-span-3">
+          <CategoryIcon name="invitations" className="h-10 w-10 shrink-0 text-[#C0532F]" />
+          <div>
+            <h2 className="text-lg font-bold">{t.inv.title}</h2>
+            <p className="text-sm text-stone-600">{t.inv.homeCard}</p>
+          </div>
+        </Link>
       </section>
       <p className="mt-6 text-center text-xs text-stone-500">{t.demoNote}</p>
     </div>

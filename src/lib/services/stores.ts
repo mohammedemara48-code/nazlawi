@@ -4,7 +4,8 @@ import { prisma } from "../db";
 import { ApiError } from "../errors";
 import type { Session } from "../session";
 import type { StoreInput } from "../validation";
-import { MAX_FEATURED, type Status } from "../constants";
+import { MAX_FEATURED, subsFor, type Status } from "../constants";
+import { dict } from "../i18n";
 import { storage } from "../storage";
 import { audit } from "./audit";
 import { normalize } from "./text";
@@ -13,8 +14,15 @@ import { type UploadInput, storeImage } from "./media";
 import { listingOrder, priceRange } from "./listings";
 import type { Sort } from "../constants";
 
-const storeSearch = (s: { nameAr: string; nameEn: string; bioAr: string; bioEn: string; area: string }) =>
-  normalize([s.nameAr, s.nameEn, s.bioAr, s.bioEn, s.area].join(" "));
+const storeSearch = (s: { nameAr: string; nameEn: string; bioAr: string; bioEn: string; area: string; craftName?: string; subcategory?: string | null }) =>
+  normalize([s.nameAr, s.nameEn, s.bioAr, s.bioEn, s.area, s.craftName ?? "", subLabels(s.subcategory)].join(" "));
+/** Only sections with sub-types keep one; the custom craft name only applies to crafts → "other". */
+export function normalizeSub<T extends { category?: string; subcategory?: string | null; craftName?: string }>(v: T) {
+  const subcategory = subsFor(v.category).includes(v.subcategory ?? "") ? v.subcategory! : null;
+  return { subcategory, craftName: v.category === "crafts" && subcategory === "other_craft" ? (v.craftName ?? "").trim() : "" };
+}
+/** Both languages' labels of a sub-type so "سباك" / "plumber" find plumbers. */
+const subLabels = (sub?: string | null) => (sub && sub !== "other_craft" ? `${dict("ar").subs[sub] ?? ""} ${dict("en").subs[sub] ?? ""}` : "");
 
 async function uniqueSlug(nameEn: string) {
   const base = nameEn.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "store";
@@ -45,7 +53,7 @@ export async function createStore(input: StoreInput, s: Session) {
   if (!user.emailVerified) throw new ApiError("EMAIL_NOT_VERIFIED");
   // One store per provider for now; the schema already allows more.
   if (await prisma.store.count({ where: { ownerId: s.sub, deletedAt: null } })) throw new ApiError("STORE_EXISTS");
-  const data = { ...input, subcategory: input.category === "medical" ? input.subcategory ?? null : null };
+  const data = { ...input, ...normalizeSub(input) };
   return prisma.store.create({
     data: { ...data, slug: await uniqueSlug(data.nameEn), ownerId: s.sub, searchText: storeSearch(data), status: "PENDING" },
     omit: { searchText: true },
@@ -55,14 +63,14 @@ export async function createStore(input: StoreInput, s: Session) {
 export async function updateStore(id: string, input: Partial<StoreInput>, s: Session) {
   const cur = await ownStore(id, s);
   const merged = { ...cur, ...input };
-  if (merged.category !== "medical") merged.subcategory = null;
+  Object.assign(merged, normalizeSub(merged));
   // Renaming or moving section needs re-approval; bio/contact edits don't.
   const sensitive = ["nameAr", "nameEn", "category", "subcategory"].some((k) => k in input && (input as Record<string, unknown>)[k] !== (cur as Record<string, unknown>)[k]);
   const sectionChanged = merged.category !== cur.category || merged.subcategory !== cur.subcategory;
   const [store] = await prisma.$transaction([
     prisma.store.update({
       where: { id },
-      data: { ...input, subcategory: merged.subcategory, searchText: storeSearch(merged), ...(sensitive && s.role !== "ADMIN" && cur.status === "APPROVED" ? { status: "PENDING" } : {}) },
+      data: { ...input, subcategory: merged.subcategory, craftName: merged.craftName, searchText: storeSearch(merged), ...(sensitive && s.role !== "ADMIN" && cur.status === "APPROVED" ? { status: "PENDING" } : {}) },
       omit: { searchText: true },
     }),
     ...(sectionChanged

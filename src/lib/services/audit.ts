@@ -1,7 +1,7 @@
 import { prisma } from "../db";
 import type { Session } from "../session";
 
-export async function audit(actor: Session, action: string, targetType: "USER" | "LISTING" | "STORE" | "VIDEO" | "PROMOTION", targetId: string, meta: Record<string, unknown> = {}) {
+export async function audit(actor: Session, action: string, targetType: "USER" | "LISTING" | "STORE" | "VIDEO" | "PROMOTION" | "POST" | "COMMENT", targetId: string, meta: Record<string, unknown> = {}) {
   const a = await prisma.user.findUnique({ where: { id: actor.sub }, select: { email: true } });
   await prisma.auditLog.create({ data: { actorId: actor.sub, actorEmail: a?.email ?? "?", action, targetType, targetId, meta: JSON.stringify(meta) } });
 }

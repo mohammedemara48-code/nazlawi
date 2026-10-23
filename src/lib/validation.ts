@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { UNITS, CATEGORIES, CURRENCIES, MAX_PRICE_MINOR, MEDICAL_SUBS, PRICE_TYPES, PROMOTION_STATUSES, SORTS, ROLES, STATUSES, USER_STATUSES, VIDEO_STATUSES } from "./constants";
+import { UNITS, CATEGORIES, CURRENCIES, MAX_PRICE_MINOR, ALL_SUBS, COMMENT_MAX, POST_CAPTION_MAX, REPORT_REASON_MAX, subsFor, PRICE_TYPES, PROMOTION_STATUSES, SORTS, ROLES, STATUSES, USER_STATUSES, VIDEO_STATUSES } from "./constants";
 
 // Messages are bilingual "ar|en"; errors.ts picks the right half.
 const m = (ar: string, en: string) => `${ar}|${en}`;
@@ -31,9 +31,15 @@ export const loginSchema = z.object({
   password: z.string().min(1, m("أدخل كلمة المرور", "Enter your password")),
 });
 
-const sub = z.enum(MEDICAL_SUBS, { message: m("التصنيف الفرعي غير صحيح", "Invalid subcategory") });
-const medicalRule = (v: { category?: string; subcategory?: string | null }) => v.category !== "medical" || !!v.subcategory;
-const medicalMsg = { message: m("اختر نوع الخدمة الطبية", "Choose a medical service type"), path: ["subcategory"] };
+const sub = z.enum(ALL_SUBS, { message: m("التصنيف الفرعي غير صحيح", "Invalid subcategory") });
+/** Sections with sub-types (medical, crafts) need one from their own list; "other_craft" needs a craft name. */
+const medicalRule = (v: { category?: string; subcategory?: string | null }) => {
+  const subs = subsFor(v.category);
+  return !subs.length || (!!v.subcategory && subs.includes(v.subcategory));
+};
+const medicalMsg = { message: m("اختر نوع الخدمة", "Choose a service type"), path: ["subcategory"] };
+const craftRule = (v: { category?: string; subcategory?: string | null; craftName?: string }) => v.category !== "crafts" || v.subcategory !== "other_craft" || !!v.craftName?.trim();
+const craftMsg = { message: m("اكتب اسم المهنة", "Enter the craft name"), path: ["craftName"] };
 const text = (max: number) => z.string().trim().max(max, m("النص طويل جداً", "Text is too long"));
 
 /** Store = the provider's mini store. Category (section) is required at onboarding. */
@@ -52,6 +58,7 @@ export const egWhatsapp = z.string().transform((v, ctx) => {
 const storeBase = z.object({
   category: z.enum(CATEGORIES, { message: m("اختر القسم", "Choose a section") }),
   subcategory: sub.nullish(),
+  craftName: z.string().trim().max(40, m("اسم المهنة طويل جداً", "Craft name is too long")).default(""),
   nameAr: z.string().trim().min(2, m("اسم المتجر بالعربي مطلوب", "Arabic store name is required")).max(80),
   nameEn: z.string().trim().min(2, m("اسم المتجر بالإنجليزي مطلوب", "English store name is required")).max(80),
   bioAr: text(600).default(""),
@@ -75,8 +82,8 @@ const landmark = (max = 120) => z.string().trim().max(max, m("العلامة ا�
 export const pinFields = { latitude: lat, longitude: lng };
 const coordsRule = (v: { latitude?: number | null; longitude?: number | null }) => (v.latitude == null) === (v.longitude == null);
 const coordsMsg = { message: m("حدد الموقع على الخريطة كاملاً", "Set both latitude and longitude"), path: ["latitude"] };
-export const storeCreateSchema = storeBase.refine(medicalRule, medicalMsg).refine(coordsRule, coordsMsg);
-export const storeUpdateSchema = storeBase.partial().refine(medicalRule, medicalMsg).refine(coordsRule, coordsMsg);
+export const storeCreateSchema = storeBase.refine(medicalRule, medicalMsg).refine(craftRule, craftMsg).refine(coordsRule, coordsMsg);
+export const storeUpdateSchema = storeBase.partial().refine((v) => v.category === undefined || medicalRule(v), medicalMsg).refine(craftRule, craftMsg).refine(coordsRule, coordsMsg);
 
 /** Listing = an ad/offer inside a store. Category comes from the store. */
 const listingBase = z.object({
@@ -137,7 +144,7 @@ export const storeQuerySchema = z.object({
   maxPrice: optMoney,
   q: z.string().trim().max(100).optional(),
   category: z.enum(CATEGORIES).optional(),
-  subcategory: z.enum(MEDICAL_SUBS).optional(),
+  subcategory: z.enum(ALL_SUBS).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(30).default(10),
 });
@@ -185,7 +192,7 @@ export const listQuerySchema = z.object({
   maxPrice: optMoney,
   q: z.string().trim().max(100).optional(),
   category: z.enum(CATEGORIES).optional(),
-  subcategory: z.enum(MEDICAL_SUBS).optional(),
+  subcategory: z.enum(ALL_SUBS).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(12),
 });
@@ -262,3 +269,12 @@ export const productUpdateSchema = z.object(productFields).partial().superRefine
 export const productQuickSchema = z.object({ price: moneyReq().optional(), oldPrice: moneyOpt(), inStock: z.boolean().optional(), featured: z.boolean().optional() })
   .refine((v) => Object.values(v).some((x) => x !== undefined), m("لا يوجد تغيير", "Nothing to change")).superRefine(oldPriceRule);
 export type ProductInput = z.infer<typeof productCreateSchema>;
+
+/** Event invitations timeline. */
+export const postCaptionSchema = z.object({ caption: text(POST_CAPTION_MAX).default("") });
+export const commentSchema = z.object({ body: z.string().trim().min(1, m("اكتب تعليقك", "Write your comment")).max(COMMENT_MAX, m("التعليق طويل جداً", "Comment is too long")) });
+export const reportSchema = z.object({
+  postId: z.string().cuid().optional(),
+  commentId: z.string().cuid().optional(),
+  reason: text(REPORT_REASON_MAX).default(""),
+}).refine((v) => !!v.postId !== !!v.commentId, { message: m("حدد المنشور أو التعليق", "Choose a post or a comment"), path: ["postId"] });

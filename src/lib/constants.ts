@@ -1,8 +1,19 @@
 export const LOCALES = ["ar", "en"] as const;
 export type Locale = (typeof LOCALES)[number];
-export const CATEGORIES = ["groceries", "clothing", "construction", "rides", "transport", "medical"] as const;
+export const CATEGORIES = ["groceries", "clothing", "construction", "rides", "transport", "medical", "crafts", "families", "events"] as const;
 export type Category = (typeof CATEGORIES)[number];
 export const MEDICAL_SUBS = ["doctors", "pharmacies", "labs"] as const;
+/** Crafts (مهن): fixed trades + "other" with a provider-typed craft name (Store.craftName). */
+export const CRAFT_SUBS = ["electrician", "plumber", "carpenter", "plastering", "gypsum", "other_craft"] as const;
+export const SUBCATEGORIES: Partial<Record<string, readonly string[]>> = { medical: MEDICAL_SUBS, crafts: CRAFT_SUBS };
+export const ALL_SUBS = [...MEDICAL_SUBS, ...CRAFT_SUBS] as const;
+export const subsFor = (category?: string | null): readonly string[] => (category && SUBCATEGORIES[category]) || [];
+/** Event invitations timeline limits. */
+export const POST_CAPTION_MAX = 500;
+export const COMMENT_MAX = 300;
+export const REPORT_REASON_MAX = 200;
+export const POSTS_PER_DAY = 5;
+export const POSTS_PAGE_SIZE = 10;
 export const ROLES = ["RESIDENT", "PROVIDER", "ADMIN"] as const;
 export type Role = (typeof ROLES)[number];
 export const STATUSES = ["PENDING", "APPROVED", "HIDDEN"] as const;

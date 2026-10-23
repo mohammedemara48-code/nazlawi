@@ -36,6 +36,8 @@ const MESSAGES = {
   SECTION_EXISTS: { ar: "في قسم بنفس الاسم", en: "A section with this name already exists" },
   PRODUCT_LIMIT: { ar: "وصلت للحد الأقصى لعدد المنتجات", en: "Maximum number of products reached" },
   PROMOTION_ENDED: { ar: "انتهت مدة هذا العرض", en: "This promotion has already ended" },
+  POST_RESIDENTS_ONLY: { ar: "النشر في دعوات المناسبات متاح لحسابات الأهالي (مش مقدمي الخدمة)", en: "Posting invitations is for resident accounts (not service providers)" },
+  ALREADY_REPORTED: { ar: "بلّغت عن ده قبل كده، الإدارة هتراجعه", en: "You already reported this; the admins will review it" },
 } as const;
 export type ErrorCode = keyof typeof MESSAGES;
 const STATUS: Record<ErrorCode, number> = {
@@ -44,7 +46,7 @@ const STATUS: Record<ErrorCode, number> = {
   TOKEN_INVALID: 400, EMAIL_NOT_VERIFIED: 403, ACCOUNT_SUSPENDED: 403, WRONG_PASSWORD: 403,
   CANNOT_MODIFY_SELF: 409, LAST_ADMIN: 409, SAME_EMAIL: 409,
   STORE_REQUIRED: 409, STORE_EXISTS: 409, ADMIN_NO_STORE: 403, FEATURED_LIMIT: 422, NOT_APPROVED: 409,
-  VIDEO_INVALID: 415, VIDEO_TOO_LARGE: 413, VIDEO_TOO_LONG: 422, INVALID_DATES: 422, PROMOTION_LIMIT: 429, PROMOTION_ENDED: 409, SECTION_LIMIT: 409, SECTION_EXISTS: 409, PRODUCT_LIMIT: 409, FILE_TOO_LARGE: 413, FILE_TYPE: 415, TOO_MANY_IMAGES: 409,
+  VIDEO_INVALID: 415, VIDEO_TOO_LARGE: 413, VIDEO_TOO_LONG: 422, INVALID_DATES: 422, PROMOTION_LIMIT: 429, PROMOTION_ENDED: 409, SECTION_LIMIT: 409, SECTION_EXISTS: 409, PRODUCT_LIMIT: 409, FILE_TOO_LARGE: 413, FILE_TYPE: 415, TOO_MANY_IMAGES: 409, POST_RESIDENTS_ONLY: 403, ALREADY_REPORTED: 409,
 };
 
 export class ApiError extends Error {

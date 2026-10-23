@@ -7,7 +7,7 @@ import { asLocale, dict, href } from "@/lib/i18n";
 import { getServerSession } from "@/lib/server-session";
 import { storeCatalog } from "@/lib/services/catalog";
 import { ApiError } from "@/lib/errors";
-import { StoreLogo } from "@/components/StoreRow";
+import { StoreLogo, subLabel } from "@/components/StoreRow";
 import StoreMap from "@/components/StoreMap";
 import StoreCatalog from "@/components/StoreCatalog";
 import { cairoMinutes, isOpenAt, waOrderLink } from "@/lib/store-hours";
@@ -78,6 +78,7 @@ export default async function StorePage({ params }: Props) {
               <h1 className="truncate font-serif text-2xl font-bold sm:text-3xl">{name}</h1>
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <Link href={href(lang, `/c/${store.category}`)} className="text-[#C0532F]">{t.categories[store.category as Category][0]}</Link>
+                {subLabel(store, lang) && <span className="rounded-full bg-[#C0532F]/10 px-2 py-0.5 text-xs font-semibold text-[#C0532F]" data-testid="store-sub">{subLabel(store, lang)}</span>}
                 {open != null && (
                   <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${open ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-700"}`}>
                     {open ? (en ? "Open now" : "مفتوح الآن") : (en ? "Closed now" : "مغلق الآن")}

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { Store } from "@prisma/client";
-import { CATEGORIES, MEDICAL_SUBS, type Locale } from "@/lib/constants";
+import { CATEGORIES, subsFor, type Locale } from "@/lib/constants";
 import { dict, href } from "@/lib/i18n";
 import { apiCall } from "./api-client";
 import CategoryIcon from "./CategoryIcon";
@@ -15,6 +15,8 @@ export default function StoreForm({ lang, initial }: { lang: Locale; initial?: S
   const t = dict(lang);
   const [category, setCategory] = useState<string>(initial?.category ?? "");
   const [sub, setSub] = useState<string>(initial?.subcategory ?? "");
+  const [craftName, setCraftName] = useState<string>(initial?.craftName ?? "");
+  const subs = subsFor(category);
   const [err, setErr] = useState<string | null>(null);
   const [fields, setFields] = useState<{ field: string; message: string }[]>([]);
   const [busy, setBusy] = useState(false);
@@ -25,7 +27,7 @@ export default function StoreForm({ lang, initial }: { lang: Locale; initial?: S
     e.preventDefault();
     setBusy(true); setErr(null); setFields([]);
     const fd = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
-    const body = { ...fd, category: category || undefined, subcategory: category === "medical" ? sub || undefined : null, latitude: pin?.lat ?? null, longitude: pin?.lng ?? null };
+    const body = { ...fd, category: category || undefined, subcategory: subs.length ? (subs.includes(sub) ? sub : undefined) : null, craftName: category === "crafts" && sub === "other_craft" ? craftName : "", latitude: pin?.lat ?? null, longitude: pin?.lng ?? null };
     const r = await apiCall(initial ? `/api/stores/${initial.id}` : "/api/stores", lang, { method: initial ? "PATCH" : "POST", body });
     setBusy(false);
     if (!r.ok) { setErr(r.error); setFields(r.details); return; }
@@ -58,14 +60,24 @@ export default function StoreForm({ lang, initial }: { lang: Locale; initial?: S
           ))}
         </div>
         {fe("category") && <p className="mt-1 text-xs text-red-600">{fe("category")}</p>}
-        {category === "medical" && (
-          <div className="mt-3 flex gap-2">
-            {MEDICAL_SUBS.map((s) => (
-              <button type="button" key={s} onClick={() => setSub(s)} className={sub === s ? "btn-primary" : "btn-outline"}>{t.subs[s]}</button>
-            ))}
+        {subs.length > 0 && (
+          <div className="mt-3">
+            <p className="label">{category === "crafts" ? t.craftType : t.serviceType} *</p>
+            <div className="flex flex-wrap gap-2" role="radiogroup" data-testid="sub-picker">
+              {subs.map((s) => (
+                <button type="button" role="radio" aria-checked={sub === s} key={s} onClick={() => setSub(s)} className={sub === s ? "btn-primary" : "btn-outline"}>{t.subs[s]}</button>
+              ))}
+            </div>
           </div>
         )}
         {fe("subcategory") && <p className="mt-1 text-xs text-red-600">{fe("subcategory")}</p>}
+        {category === "crafts" && sub === "other_craft" && (
+          <div className="mt-3">
+            <label className="label" htmlFor="craftName">{t.craftName} *</label>
+            <input id="craftName" className="input" maxLength={40} value={craftName} onChange={(e) => setCraftName(e.target.value)} placeholder={t.craftNamePh} />
+            {fe("craftName") && <p className="mt-1 text-xs text-red-600">{fe("craftName")}</p>}
+          </div>
+        )}
       </fieldset>
       <div className="grid gap-4 sm:grid-cols-2">
         {F({ name: "nameAr", label: t.storeNameAr })}

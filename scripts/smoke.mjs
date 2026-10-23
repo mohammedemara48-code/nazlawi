@@ -38,6 +38,11 @@ async function seed() {
   const todelete = await mk("todelete", "APPROVED");
   const admin = await prisma.user.create({ data: { email: "smoke-admin@nazlawi.test", name: "Smoke admin", role: "ADMIN", password: hash, emailVerified: new Date() } });
   await prisma.store.create({ data: { slug: "smoke-adminstore", ownerId: admin.id, category: "groceries", nameAr: "متجر الأدمن", nameEn: "Admin store", phone: "01012345678", status: "APPROVED" } });
+  // New sections + invitations fixtures.
+  const crafts = await prisma.user.create({ data: { email: "smoke-crafts@nazlawi.test", name: "Smoke crafts", role: "PROVIDER", password: hash, emailVerified: new Date() } });
+  await prisma.store.create({ data: { slug: "smoke-crafts", ownerId: crafts.id, category: "crafts", subcategory: "other_craft", craftName: "نقاش سموك", nameAr: "ورشة سموك", nameEn: "Smoke workshop", phone: "01012345678", whatsapp: "+201012345678", status: "APPROVED" } });
+  await prisma.user.create({ data: { email: "smoke-newprov@nazlawi.test", name: "Smoke newprov", role: "PROVIDER", password: hash, emailVerified: new Date() } });
+  for (const tag of ["res1", "res2"]) await prisma.user.create({ data: { email: `smoke-${tag}@nazlawi.test`, name: `Smoke ${tag}`, role: "RESIDENT", password: hash, emailVerified: new Date() } });
   return { approved, todelete, admin, pending: await mk("pending", "PENDING"), unverified: await mk("unverified", "PENDING", false) };
 }
 async function cleanup() {
@@ -179,6 +184,138 @@ async function main() {
       await anon.waitForTimeout(1500);
       assert(errs.length === 0, `CSP violation: ${errs[0]}`);
       assert((await anon.locator(".leaflet-container").count()) > 0, "map missing");
+    });
+    // ---- new sections: crafts / productive families / event preparation ----
+    await check("home: 9 section cards incl. crafts/families/events + invitations card", async () => {
+      await anon.goto(BASE + "/", { waitUntil: "networkidle" });
+      for (const c of ["crafts", "families", "events", "groceries", "medical"]) assert((await anon.locator(`a[href="/c/${c}"]`).count()) > 0, `home card ${c} missing`);
+      assert(await anon.getByTestId("home-invitations").isVisible(), "invitations card missing");
+      await anon.goto(BASE + "/en", { waitUntil: "networkidle" });
+      assert(await anon.getByText("Crafts").first().isVisible(), "English crafts label missing");
+    });
+    await check("crafts page: trade tabs + store with custom craft name; filter by trade", async () => {
+      await anon.goto(BASE + "/c/crafts", { waitUntil: "networkidle" });
+      const tabs = anon.getByTestId("sub-tabs");
+      for (const l of ["كهربائي", "سباك", "نجار", "محارة", "جبس", "مهنة أخرى"]) assert((await tabs.getByText(l).count()) > 0, `tab ${l} missing`);
+      assert(await anon.getByText("ورشة سموك").first().isVisible(), "crafts store missing");
+      assert(await anon.getByText("نقاش سموك").first().isVisible(), "custom craft name missing");
+      await anon.goto(BASE + "/c/crafts?subcategory=plumber", { waitUntil: "networkidle" });
+      assert((await anon.getByText("ورشة سموك").count()) === 0, "filter by trade not applied");
+      await anon.goto(BASE + "/s/smoke-crafts", { waitUntil: "networkidle" });
+      assert((await anon.getByTestId("store-sub").textContent()).includes("نقاش سموك"), "craft badge missing on store page");
+    });
+    for (const path of ["/c/families", "/c/events", "/en/c/crafts", "/invitations", "/en/invitations"]) {
+      await check(`page ${path} loads`, async () => { const r = await anon.goto(BASE + path); assert(r.ok(), `status ${r.status()}`); });
+    }
+    await check("onboarding: crafts shows trade picker; 'other' asks for the craft name; store created", async () => {
+      const np = await newPage("smoke-newprov@nazlawi.test");
+      await np.goto(BASE + "/onboarding", { waitUntil: "networkidle" });
+      await np.getByRole("radio", { name: "مهن", exact: true }).click();
+      const picker = np.getByTestId("sub-picker");
+      assert(await picker.isVisible(), "trade picker missing");
+      await picker.getByText("مهنة أخرى").click();
+      await np.locator("#craftName").fill("حداد");
+      await np.locator('input[name="nameAr"]').fill("ورشة حداد");
+      await np.locator('input[name="nameEn"]').fill("Smoke smith");
+      await np.locator('input[name="phone"]').fill("01012345678");
+      const resp = np.waitForResponse((r) => r.url().includes("/api/stores") && r.request().method() === "POST");
+      await np.getByRole("button", { name: "إنشاء المتجر" }).click();
+      const r = await resp;
+      const body = await r.json().catch(() => null);
+      assert(r.status() === 201, `create store ${r.status()} ${JSON.stringify(body).slice(0, 160)}`);
+      const st = await prisma.store.findFirst({ where: { owner: { email: "smoke-newprov@nazlawi.test" } } });
+      assert(st.category === "crafts" && st.subcategory === "other_craft" && st.craftName === "حداد", `wrong store ${JSON.stringify(st).slice(0, 120)}`);
+      await np.context().close();
+    });
+    // ---- event invitations timeline + profile photo ----
+    const sharp = (await import("sharp")).default;
+    const imgPath = "/tmp/smoke-invite.png";
+    writeFileSync(imgPath, await sharp({ create: { width: 800, height: 1000, channels: 3, background: "#c0532f" } }).png().toBuffer());
+    const r1 = await newPage("smoke-res1@nazlawi.test");
+    r1.on("dialog", (d) => d.accept(d.type() === "prompt" ? "smoke reason" : undefined));
+    await check("profile: resident uploads a profile photo", async () => {
+      await r1.goto(BASE + "/profile", { waitUntil: "networkidle" });
+      assert(await r1.getByTestId("profile-card").isVisible(), "profile page missing");
+      const resp = r1.waitForResponse((r) => r.url().includes("/api/account/avatar") && r.request().method() === "POST");
+      await r1.getByTestId("upload-avatar").locator('input[type="file"]').first().setInputFiles(imgPath);
+      assert((await resp).status() === 201, "avatar upload failed");
+      await r1.waitForSelector('[data-testid="profile-card"] img[src*="/api/uploads/avatars/"]', { timeout: 10000 });
+      await shot(r1, "profile");
+    });
+    let postId = "";
+    await check("invitations: resident publishes image + caption; shows photo/name", async () => {
+      await r1.goto(BASE + "/invitations", { waitUntil: "networkidle" });
+      await r1.getByTestId("post-file").setInputFiles(imgPath);
+      await r1.locator("#post-caption").fill("فرح سموك يوم الخميس");
+      const resp = r1.waitForResponse((r) => r.url().includes("/api/posts") && r.request().method() === "POST");
+      await r1.getByTestId("post-publish").click();
+      const r = await resp;
+      assert(r.status() === 201, `publish ${r.status()}`);
+      postId = (await r.json()).post.id;
+      const card = r1.locator(`[data-post-id="${postId}"]`);
+      await card.waitFor({ timeout: 10000 });
+      assert((await card.getByTestId("post-caption").textContent()).includes("فرح سموك"), "caption missing");
+      assert((await card.locator('img[src*="/api/uploads/avatars/"]').count()) > 0, "author photo missing on post");
+      await shot(r1, "invitations");
+    });
+    await check("invitations: another villager (provider) likes + comments + reports; providers can't post", async () => {
+      const pv = await newPage("smoke-approved@nazlawi.test");
+      pv.on("dialog", (d) => d.accept(d.type() === "prompt" ? "smoke" : undefined));
+      await pv.goto(BASE + "/invitations", { waitUntil: "networkidle" });
+      assert((await pv.getByTestId("post-composer").count()) === 0, "provider sees the composer");
+      const card = pv.locator(`[data-post-id="${postId}"]`);
+      const lr = pv.waitForResponse((r) => r.url().includes("/like"));
+      await card.getByTestId("post-like").click();
+      assert((await (await lr).json()).liked === true, "like failed");
+      await card.getByTestId("comment-input").fill("ألف مبروك");
+      const cr = pv.waitForResponse((r) => r.url().includes("/comments") && r.request().method() === "POST");
+      await card.getByTestId("comment-send").click();
+      assert((await cr).status() === 201, "comment failed");
+      await card.getByText("ألف مبروك").waitFor({ timeout: 10000 });
+      const rr = pv.waitForResponse((r) => r.url().includes("/api/reports"));
+      await card.getByTestId("post-report").click();
+      assert((await rr).status() === 201, "report failed");
+      const api = await pv.request.post(BASE + "/api/posts", { multipart: { file: { name: "a.png", mimeType: "image/png", buffer: readFileSync(imgPath) } } });
+      assert(api.status() === 403, `provider post API ${api.status()}`);
+      await pv.context().close();
+    });
+    await check("invitations: user deletes own comment; public profile page shows posts", async () => {
+      const r2 = await newPage("smoke-res2@nazlawi.test");
+      r2.on("dialog", (d) => d.accept());
+      await r2.goto(BASE + "/invitations", { waitUntil: "networkidle" });
+      const card = r2.locator(`[data-post-id="${postId}"]`);
+      await card.getByTestId("comment-input").fill("تعليق للحذف");
+      await card.getByTestId("comment-send").click();
+      const mine = card.getByTestId("comment").filter({ hasText: "تعليق للحذف" });
+      await mine.waitFor({ timeout: 10000 });
+      assert((await card.getByTestId("post-delete").count()) === 0, "non-author sees delete on post");
+      await mine.getByTestId("comment-delete").click();
+      await mine.waitFor({ state: "detached", timeout: 10000 });
+      const author = await prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
+      await r2.goto(BASE + `/u/${author.authorId}`, { waitUntil: "networkidle" });
+      assert(await r2.getByTestId("user-card").isVisible(), "public profile missing");
+      assert((await r2.locator(`[data-post-id="${postId}"]`).count()) === 1, "post missing on profile");
+      await r2.context().close();
+    });
+    await check("admin: reports page lists the report; admin deletes post permanently (gone everywhere + image 404)", async () => {
+      const ad = await newPage("smoke-admin@nazlawi.test");
+      ad.on("dialog", (d) => d.accept());
+      await ad.goto(BASE + "/admin/reports", { waitUntil: "networkidle" });
+      assert((await ad.getByTestId("reports").getByText("فرح سموك").count()) > 0, "report missing");
+      const key = (await prisma.post.findUnique({ where: { id: postId } })).imageKey;
+      const dr = ad.waitForResponse((r) => r.url().includes(`/api/posts/${postId}`) && r.request().method() === "DELETE");
+      await ad.getByTestId("report-delete").first().click();
+      assert((await dr).status() === 200, "admin delete failed");
+      assert((await prisma.post.count({ where: { id: postId } })) === 0, "post still in DB");
+      await anon.goto(BASE + "/invitations", { waitUntil: "networkidle" });
+      assert((await anon.locator(`[data-post-id="${postId}"]`).count()) === 0, "post still on timeline");
+      assert((await anon.request.get(BASE + "/api/uploads/" + key)).status() === 404, "image still served");
+      await ad.context().close();
+    });
+    await r1.context().close();
+    await check("/profile requires sign-in", async () => {
+      await anon.goto(BASE + "/profile", { waitUntil: "networkidle" });
+      assert(new URL(anon.url()).pathname === "/login", `landed on ${anon.url()}`);
     });
     // ---- admin: never owns a store; delete = soft delete, hidden everywhere immediately ----
     const adm = await newPage("smoke-admin@nazlawi.test");

@@ -15,7 +15,7 @@ async function userWithPassword(id: string, password: string) {
 export async function getAccount(id: string) {
   return prisma.user.findUnique({
     where: { id },
-    select: { id: true, name: true, email: true, phone: true, locale: true, latitude: true, longitude: true, addressNote: true, role: true, emailVerified: true, createdAt: true },
+    select: { id: true, name: true, email: true, phone: true, locale: true, latitude: true, longitude: true, addressNote: true, role: true, emailVerified: true, createdAt: true, avatarKey: true },
   });
 }
 
@@ -48,12 +48,13 @@ export async function deleteAccount(id: string, password: string) {
     if (others === 0) throw new ApiError("LAST_ADMIN");
   }
   // Collect every stored file first; DB rows go via cascades (stores -> listings -> images/videos/promotions).
-  const [images, stores, videos] = await Promise.all([
+  const [images, stores, videos, posts] = await Promise.all([
     prisma.listingImage.findMany({ where: { listing: { ownerId: id } }, select: { key: true } }),
     prisma.store.findMany({ where: { ownerId: id }, select: { logoKey: true, coverKey: true } }),
     prisma.video.findMany({ where: { ownerId: id }, select: { key: true, posterKey: true, sourceKey: true } }),
+    prisma.post.findMany({ where: { authorId: id }, select: { imageKey: true } }),
   ]);
   await prisma.user.delete({ where: { id } });
-  const keys = [...images.map((i) => i.key), ...stores.flatMap((s) => [s.logoKey, s.coverKey]), ...videos.flatMap((v) => [v.key, v.posterKey, v.sourceKey])].filter(Boolean) as string[];
+  const keys = [u.avatarKey, ...posts.map((p) => p.imageKey), ...images.map((i) => i.key), ...stores.flatMap((s) => [s.logoKey, s.coverKey]), ...videos.flatMap((v) => [v.key, v.posterKey, v.sourceKey])].filter(Boolean) as string[];
   await Promise.all(keys.map((k) => storage.delete(k).catch(() => {})));
 }

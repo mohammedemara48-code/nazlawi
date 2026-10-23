@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { CATEGORIES, MEDICAL_SUBS, type Category } from "@/lib/constants";
+import { CATEGORIES, subsFor, type Category } from "@/lib/constants";
 import { asLocale, dict, href } from "@/lib/i18n";
 import { listStores } from "@/lib/services/stores";
 import { activePromotions } from "@/lib/services/promotions";
@@ -47,11 +47,11 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         </div>
       </div>
       <PromoStrip items={promos} lang={lang} />
-      {slug === "medical" && (
-        <div className="flex gap-2" role="tablist">
-          {[undefined, ...MEDICAL_SUBS].map((s) => (
+      {subsFor(slug).length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" data-testid="sub-tabs">
+          {[undefined, ...subsFor(slug)].map((s) => (
             <Link key={s ?? "all"} role="tab" aria-selected={query.subcategory === s} href={mk({ subcategory: s, sort: query.sort === "newest" ? undefined : query.sort, minPrice: query.minPrice, maxPrice: query.maxPrice })}
-              className={query.subcategory === s ? "btn-primary" : "btn-outline"}>{s ? t.subs[s] : t.all}</Link>
+              className={`shrink-0 ${query.subcategory === s ? "btn-primary" : "btn-outline"}`}>{s ? t.subs[s] : t.all}</Link>
           ))}
         </div>
       )}

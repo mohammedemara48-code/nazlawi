@@ -10,6 +10,13 @@ export function StoreLogo({ k, name, size = "h-12 w-12" }: { k: string | null; n
     : <span className={`${size} flex shrink-0 items-center justify-center rounded-xl bg-[#C0532F] text-lg font-bold text-white`}>{name.slice(0, 1)}</span>;
 }
 
+/** "سباك" / custom craft name / "صيدليات" … or "" when the section has no sub-types. */
+export function subLabel(s: { subcategory: string | null; craftName?: string }, lang: Locale) {
+  if (!s.subcategory) return "";
+  if (s.subcategory === "other_craft") return s.craftName || dict(lang).subs.other_craft;
+  return dict(lang).subs[s.subcategory] ?? "";
+}
+
 /** Category page row: store name (+logo) and its featured listings side by side. */
 export default function StoreRow({ s, lang }: { s: Store; lang: Locale }) {
   const t = dict(lang);
@@ -21,7 +28,7 @@ export default function StoreRow({ s, lang }: { s: Store; lang: Locale }) {
           <StoreLogo k={s.logoKey} name={name} />
           <div className="min-w-0">
             <h2 className="truncate text-lg font-bold">{name}</h2>
-            <p className="truncate text-xs text-stone-500">{[s.area, t.results(s.listingCount)].filter(Boolean).join(" · ")}</p>
+            <p className="truncate text-xs text-stone-500">{[subLabel(s, lang), s.area, t.results(s.listingCount)].filter(Boolean).join(" · ")}</p>
           </div>
         </Link>
         <div className="flex shrink-0 items-center gap-2">

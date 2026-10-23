@@ -22,6 +22,7 @@ export default async function Header({ lang }: { lang: Locale }) {
             <>
               {s.role === "ADMIN" && <Link className="btn-outline px-3 sm:px-4" href={href(lang, "/admin")} aria-label={t.admin} title={t.admin}><span aria-hidden className="sm:hidden">🛡️</span><span className="hidden sm:inline">{t.admin}</span></Link>}
               {s.role !== "ADMIN" && <Link className="btn-outline px-3 sm:px-4" href={href(lang, "/dashboard")} aria-label={t.dashboard} title={t.dashboard}><span aria-hidden className="sm:hidden">🏪</span><span className="hidden sm:inline">{t.dashboard}</span></Link>}
+              <Link className="btn-outline px-3 sm:px-4" href={href(lang, "/profile")} aria-label={t.prof.title} title={t.prof.title} data-testid="nav-profile"><span aria-hidden className="sm:hidden">👤</span><span className="hidden sm:inline">{t.prof.title}</span></Link>
               <Link className="btn-outline px-3 sm:px-4" href={href(lang, "/settings")} aria-label={t.settings} title={t.settings}><span aria-hidden className="sm:hidden">⚙️</span><span className="hidden sm:inline">{t.settings}</span></Link>
               <LogoutButton lang={lang} label={t.logout} />
             </>
