@@ -7,6 +7,8 @@ import { getAccount } from "@/lib/services/account";
 import { listPosts } from "@/lib/services/posts";
 import Avatar from "@/components/Avatar";
 import MediaUploader from "@/components/MediaUploader";
+import ResendVerification from "@/components/ResendVerification";
+import { emailDeliveryEnabled } from "@/lib/mailer";
 import PostCard from "@/components/invitations/PostCard";
 import { toView } from "@/components/invitations/serialize";
 
@@ -26,6 +28,12 @@ export default async function Profile({ params }: Props) {
   const posts = await listPosts({ authorId: s.sub, viewerId: s.sub, pageSize: 30 });
   return (
     <div className="mx-auto max-w-2xl space-y-5">
+      {!a.emailVerified && emailDeliveryEnabled() && (
+        <div className="card flex flex-col gap-2 border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between" data-testid="verify-banner">
+          <p>{t.verifyBanner(a.email)}</p>
+          <ResendVerification lang={lang} />
+        </div>
+      )}
       <section className="card space-y-4 p-5" data-testid="profile-card">
         <div className="flex items-center gap-4">
           <Avatar k={a.avatarKey} name={a.name} size="h-20 w-20 text-2xl" />

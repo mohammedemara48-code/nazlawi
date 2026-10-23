@@ -4,11 +4,12 @@ import { prisma } from "../db";
 import { ApiError } from "../errors";
 import { mailer } from "../mailer";
 import type { Locale } from "../constants";
+import { siteUrl } from "../site";
 
 export type TokenType = "VERIFY_EMAIL" | "RESET_PASSWORD" | "CHANGE_EMAIL";
 const TTL: Record<TokenType, number> = { VERIFY_EMAIL: 24 * 3600_000, RESET_PASSWORD: 30 * 60_000, CHANGE_EMAIL: 24 * 3600_000 };
 const sha256 = (s: string) => crypto.createHash("sha256").update(s).digest("hex");
-const appUrl = () => (process.env.APP_URL || "http://localhost:3100").replace(/\/$/, "");
+const appUrl = siteUrl;
 const prefix = (l: Locale) => (l === "en" ? "/en" : "");
 
 /** Creates a new token (invalidating older unused ones of the same type). Returns the raw token. */
@@ -33,11 +34,11 @@ async function consume(raw: string, type: TokenType) {
 export async function sendVerification(user: { id: string; email: string; name: string }, lang: Locale) {
   const raw = await issueToken(user.id, "VERIFY_EMAIL");
   const link = `${appUrl()}${prefix(lang)}/verify?token=${raw}`;
-  await mailer.send(
+  return (await mailer.send(
     lang === "en"
       ? { to: user.email, subject: "Confirm your Nazlawi email", text: `Hi ${user.name},\n\nConfirm your email by opening this link (valid 24 hours):\n${link}\n` }
       : { to: user.email, subject: "تأكيد بريدك الإلكتروني في نزلاوي", text: `أهلاً ${user.name}،\n\nأكّد بريدك الإلكتروني بفتح الرابط ده (صالح 24 ساعة):\n${link}\n` },
-  );
+  )) !== false;
 }
 
 export async function verifyEmail(raw: string) {

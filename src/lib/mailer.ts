@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 export type Mail = { to: string; subject: string; text: string; html?: string };
-export interface Mailer { send(mail: Mail): Promise<void> }
+export interface Mailer { send(mail: Mail): Promise<void | boolean> }
 
 export const OUTBOX_DIR = path.join(process.cwd(), ".outbox");
 
@@ -20,6 +20,7 @@ class OutboxMailer implements Mailer {
 class ConsoleMailer implements Mailer {
   async send(mail: Mail) {
     console.warn(`[mail] SMTP not configured; email NOT sent. to=${mail.to} subject=${mail.subject}`);
+    return false;
   }
 }
 
@@ -33,7 +34,8 @@ export class SmtpMailer implements Mailer {
     }),
   );
   async send(mail: Mail) {
-    await (await this.transport).sendMail({ from: process.env.MAIL_FROM || "Nazlawi <no-reply@nazlawi.example>", ...mail });
+    const info = await (await this.transport).sendMail({ from: process.env.MAIL_FROM || "Nazlawi <no-reply@nazlawi.example>", ...mail });
+    if (!info.accepted?.length) throw Object.assign(new Error("SMTP rejected recipient"), { code: "EENVELOPE" });
   }
 }
 
@@ -55,14 +57,25 @@ export class ResendMailer implements Mailer {
 export const emailDeliveryEnabled = () => !!(process.env.RESEND_API_KEY || process.env.SMTP_HOST);
 const outboxAllowed = () => process.env.NODE_ENV !== "production" && !process.env.VERCEL;
 
-/** Wraps a mailer so delivery failures are logged instead of failing the request (e.g. signup). */
+/** Masks an address for logs: "ab***@gmail.com". */
+export const maskEmail = (e: string) => e.replace(/^(.{0,2})[^@]*@/, "$1***@");
+/**
+ * Wraps a mailer so delivery failures are logged instead of failing the request (e.g. signup).
+ * Returns true when the provider accepted the message, false otherwise. Logs never include secrets.
+ */
 class SafeMailer implements Mailer {
   constructor(private inner: Mailer) {}
   async send(mail: Mail) {
-    try { await this.inner.send(mail); }
-    catch (e) {
+    try {
+      const r = await this.inner.send(mail);
+      if (r === false) return false;
+      if (process.env.NODE_ENV !== "test") console.log(`[mail] sent:true to=${maskEmail(mail.to)} subject=${mail.subject}`);
+      return true;
+    } catch (e) {
       if (process.env.NODE_ENV === "test") throw e;
-      console.error(`[mail] delivery failed to=${mail.to} subject=${mail.subject}:`, e);
+      const err = e as { code?: string; responseCode?: number; message?: string };
+      console.error(`[mail] sent:false to=${maskEmail(mail.to)} subject=${mail.subject} code=${err.code ?? "-"} responseCode=${err.responseCode ?? "-"} msg=${String(err.message ?? "").slice(0, 120)}`);
+      return false;
     }
   }
 }
