@@ -43,7 +43,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         <CategoryIcon name={slug} className="h-10 w-10 text-[#C0532F]" />
         <div>
           <h1 className="font-serif text-3xl font-bold">{t.categories[slug as Category][0]}</h1>
-          <p className="text-stone-600">{t.categories[slug as Category][1]}</p>
+          {t.categories[slug as Category][1] && <p className="text-stone-600">{t.categories[slug as Category][1]}</p>}
         </div>
       </div>
       <PromoStrip items={promos} lang={lang} />

@@ -3,9 +3,12 @@
 All notable changes are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning: [SemVer](https://semver.org/).
 Web and Android share the version number (Android `versionName` / `versionCode` in brackets).
 
-## [Unreleased]
+## [1.3.0] — 2026-10-23 (web; Android app unchanged 1.2 / 3 — it loads the live site, so it gets these features without a rebuild)
 ### Fixed
 - Verification email: delivery result is now logged (`[mail] sent:true|false`, masked address, error code only) and returned; "Resend verification" reports failures instead of always saying "sent"; links fall back to the Vercel production URL if `APP_URL` is missing; resend button + spam hint also on the profile page.
+
+### Changed
+- The three new sections show their name only (no subtitle).
 
 ### Added
 - New provider sections: **Crafts / مهن** (electrician, plumber, carpenter, plastering, gypsum, or a custom craft name), **Productive families / أسرة منتجة**, **Event preparation / تجهيز مناسبات** — same store features as the other sections; trade filter tabs and searchable trade names.

@@ -26,7 +26,7 @@ export default async function Home({ params }: { params: Promise<{ lang: string 
           <Link key={c} href={href(lang, `/c/${c}`)} className="card p-5 transition hover:-translate-y-0.5 hover:shadow-md">
             <CategoryIcon name={c} className="h-8 w-8 text-[#C0532F]" />
             <h2 className="mt-3 text-lg font-bold">{t.categories[c][0]}</h2>
-            <p className="text-sm text-stone-600">{t.categories[c][1]}</p>
+            {t.categories[c][1] && <p className="text-sm text-stone-600">{t.categories[c][1]}</p>}
             <p className="mt-2 text-xs text-stone-400">{counts[c] ?? 0} {t.stores}</p>
           </Link>
         ))}
