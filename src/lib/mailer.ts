@@ -23,7 +23,7 @@ class ConsoleMailer implements Mailer {
   }
 }
 
-class SmtpMailer implements Mailer {
+export class SmtpMailer implements Mailer {
   private transport = import("nodemailer").then((n) =>
     n.createTransport({
       host: process.env.SMTP_HOST,
@@ -79,4 +79,15 @@ export async function readOutbox(limit = 50) {
   } catch {
     return [];
   }
+}
+
+/** Admin diagnostics: send one test email to the configured sender address only (never an arbitrary recipient). Errors propagate. */
+export async function sendTestEmail() {
+  if (!emailDeliveryEnabled()) return { sent: false, reason: "NOT_CONFIGURED" as const };
+  const to = (process.env.SMTP_USER || /<([^>]+)>/.exec(process.env.MAIL_FROM || "")?.[1] || "").trim();
+  if (!to) return { sent: false, reason: "NO_RECIPIENT" as const };
+  const inner: Mailer = process.env.RESEND_API_KEY ? new ResendMailer(process.env.RESEND_API_KEY) : new SmtpMailer();
+  await inner.send({ to, subject: "Nazlawi test email / رسالة تجريبية", text: `Email delivery works. / الإيميل شغال.\n${new Date().toISOString()}` });
+  console.log("[mail] test email sent to the sender address");
+  return { sent: true as const };
 }
