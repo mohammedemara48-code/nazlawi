@@ -43,7 +43,7 @@ jobs:
           printf '%s' "$PASS" | gpg --batch --yes --pinentry-mode loopback --passphrase-fd 0 --symmetric --cipher-algo AES256 -o "/tmp/out/$f.gpg" "/tmp/$f"
           shred -u "/tmp/$f"
           ls -la /tmp/out | awk 'NR>1{print $5, $9}'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: env.SKIP != '1'
         with:
           name: db-backup-${{ github.run_id }}
